@@ -309,7 +309,7 @@ def render_matching_screen(player_label, player_name, likes_key):
             st.session_state[gallery_key] = max(0, gallery_idx-1)
             return
     with gallery_cols[1]:
-        st.image(images[gallery_idx], use_column_width=True, output_format="JPEG", caption=None)
+        st.image(images[gallery_idx], use_container_width=True, output_format="JPEG", caption=None)
     with gallery_cols[2]:
         if st.button("⟶", key=f"gallery_right_{biz['id']}_{gallery_idx}", disabled=(gallery_idx==len(images)-1)):
             st.session_state[gallery_key] = min(len(images)-1, gallery_idx+1)
@@ -395,11 +395,7 @@ def reset_app_state():
     ]:
         if key in st.session_state:
             del st.session_state[key]
-    st.experimental_rerun()
-    # Keep API key if entered previously, or clear if desired
-    # st.session_state.api_key_input = "" 
+    return
 
 if __name__ == "__main__":
     main()
-
-
