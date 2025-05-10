@@ -52,6 +52,20 @@ function App() {
     }
     nextRestaurant();
   };
+
+  const handleFinish = () => {
+    if (matchingPlayer === 1) {
+      setMatchingPlayer(2);
+      setCurrentIdx(0);
+    } else {
+      // Compute mutual likes
+      const ids1 = new Set(player1Likes.map(b => b.id));
+      const mutual = player2Likes.filter(b => ids1.has(b.id));
+      setMutualLikes(mutual);
+      setStage('results');
+    }
+  };
+
   const handleDislike = () => {
     nextRestaurant();
   };
@@ -91,11 +105,12 @@ function App() {
   if (stage === 'matching') {
     return (
       <MatchPage
-        restaurants={restaurants}
+        restaurants={restaurants.businesses || restaurants} // fallback for old/new API shape
         onLike={handleLike}
         onDislike={handleDislike}
         currentIdx={currentIdx}
         player={matchingPlayer === 1 ? player1 : player2}
+        onFinish={handleFinish}
       />
     );
   }
