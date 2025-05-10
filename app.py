@@ -198,6 +198,7 @@ def render_setup_screen():
         st.session_state.player2_likes = set()
         st.session_state.current_index = 0
         st.session_state.app_stage = "player1_matching"
+        st.experimental_rerun()
     st.markdown("""
     <hr style='margin-top:2rem;margin-bottom:2rem;'>
     <div class='setup-tip'>
@@ -209,57 +210,58 @@ def render_setup_screen():
 def render_matching_screen(player_label, player_name, likes_key):
     st.markdown("""
         <style>
-        body { font-family: 'Montserrat', 'Lato', 'Roboto', sans-serif; }
+        body { font-family: 'Montserrat', 'Lato', 'Roboto', sans-serif; background: #181818 !important; }
         .centered-card {
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            min-height: 80vh;
+            min-height: 60vh;
         }
         .bumble-card {
-            background: #fff;
+            background: #232323;
             border-radius: 32px;
-            box-shadow: 0 8px 32px #0002;
-            width: 370px;
+            box-shadow: 0 8px 32px #0005;
+            width: 400px;
             padding: 0;
-            margin: 0 auto 32px auto;
+            margin: 0 auto 14px auto;
             position: relative;
             overflow: hidden;
         }
-        .bumble-card img {
-            width: 100%;
-            height: 260px;
-            object-fit: cover;
-            border-top-left-radius: 32px;
-            border-top-right-radius: 32px;
+        .gallery-container {
+            display: flex; align-items: center; justify-content: center; height: 240px; background: #111; position: relative;
+        }
+        .gallery-arrow {
+            color: #FFDE59; background: transparent; border: none; font-size: 2.2rem; cursor: pointer; z-index: 2; margin: 0 8px; padding: 0 8px;
+        }
+        .gallery-arrow:disabled { opacity: 0.3; cursor: default; }
+        .gallery-img {
+            width: 320px; height: 220px; object-fit: cover; border-radius: 18px; box-shadow: 0 2px 16px #0006; margin: 0 12px;
         }
         .card-content {
-            padding: 24px 24px 12px 24px;
+            padding: 18px 24px 10px 24px;
         }
         .card-title {
-            font-size: 2rem;
-            font-weight: bold;
-            color: #222;
+            font-size: 2rem; font-weight: bold; color: #fff;
         }
         .card-sub {
-            color: #555;
-            margin-bottom: 12px;
+            color: #fff; margin-bottom: 10px; font-size: 1.08rem;
         }
         .action-row {
-            display: flex; justify-content: space-evenly; margin: 24px 0 12px 0;
+            display: flex; justify-content: space-evenly; margin: 18px 0 8px 0;
         }
         .action-btn {
-            background: #fff;
+            background: #232323;
             border-radius: 50%;
-            width: 72px; height: 72px;
+            width: 68px; height: 68px;
             display: flex; align-items: center; justify-content: center;
             box-shadow: 0 2px 8px #0002;
-            font-size: 2.4rem;
+            font-size: 2.2rem;
             border: 4px solid #FFDE59;
             transition: box-shadow 0.2s, border-color 0.2s;
             margin: 0 18px;
             cursor: pointer;
+            color: #fff;
         }
-        .action-btn.like { border-color: #27ae60; }
-        .action-btn.dislike { border-color: #e74c3c; }
+        .action-btn.like { border-color: #27ae60; color: #27ae60; }
+        .action-btn.dislike { border-color: #e74c3c; color: #e74c3c; }
         .action-btn:hover { box-shadow: 0 6px 24px #0003; }
         .bumble-yellow { color: #FFDE59; }
         </style>
@@ -269,7 +271,7 @@ def render_matching_screen(player_label, player_name, likes_key):
     idx = st.session_state.current_index
     total = len(restaurants)
 
-    st.markdown(f"<div style='text-align:center; margin-bottom:1.5rem;'><span style='font-size:1.6rem;font-weight:600;'>🐝 {player_label}'s Turn</span><br><span style='color:#888;font-size:1.05rem;'>Picking in <b>{st.session_state.search_location_text}</b> (within <b>{st.session_state.search_radius_km} km</b>)</span></div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='text-align:center; margin-bottom:0.6rem;'><span style='font-size:1.6rem;font-weight:600; color:#fff;'>🐝 {player_label}'s Turn</span><br><span style='color:#FFDE59;font-size:1.05rem;'>Picking in <b>{st.session_state.search_location_text}</b> (within <b>{st.session_state.search_radius_km} km</b>)</span></div>", unsafe_allow_html=True)
 
     if total == 0:
         st.error("No restaurants to display. Please restart.")
@@ -281,13 +283,38 @@ def render_matching_screen(player_label, player_name, likes_key):
                 st.session_state.app_stage = "player2_matching"
             else:
                 st.session_state.app_stage = "results"
+            st.experimental_rerun()
         return
 
     biz = restaurants[idx]
+    # --- Image Gallery State ---
+    gallery_key = f"gallery_idx_{biz['id']}"
+    if gallery_key not in st.session_state:
+        st.session_state[gallery_key] = 0
+    images = biz.get("photos") or ([biz["image_url"]] if biz.get("image_url") else [])
+    if not images:
+        images = ["https://via.placeholder.com/320x220?text=No+Image"]
+    gallery_idx = st.session_state[gallery_key]
+    gallery_idx = max(0, min(gallery_idx, len(images)-1))
+    st.session_state[gallery_key] = gallery_idx
+
     st.markdown('<div class="centered-card">', unsafe_allow_html=True)
     st.markdown('<div class="bumble-card">', unsafe_allow_html=True)
-    # Main image
-    st.markdown(f'<img src="{biz["image_url"]}" alt="{biz["name"]}">', unsafe_allow_html=True)
+    # --- Gallery with Arrows ---
+    st.markdown('<div class="gallery-container">', unsafe_allow_html=True)
+    left, imgcol, right = st.columns([1,4,1], gap="small")
+    with left:
+        if st.button("⟵", key=f"gallery_left_{biz['id']}", disabled=(gallery_idx==0)):
+            st.session_state[gallery_key] = max(0, gallery_idx-1)
+            st.experimental_rerun()
+    with imgcol:
+        st.image(images[gallery_idx], use_column_width=True, output_format="JPEG", caption=None)
+    with right:
+        if st.button("⟶", key=f"gallery_right_{biz['id']}", disabled=(gallery_idx==len(images)-1)):
+            st.session_state[gallery_key] = min(len(images)-1, gallery_idx+1)
+            st.experimental_rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+    # --- Card Content ---
     st.markdown(f'''
         <div class="card-content">
             <div class="card-title">{biz["name"]}</div>
@@ -297,12 +324,13 @@ def render_matching_screen(player_label, player_name, likes_key):
         </div>
     ''', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
-    # Action row
+    # --- Action Row ---
     st.markdown('<div class="action-row">', unsafe_allow_html=True)
     c1, c2, c3 = st.columns([1,1,1])
     with c1:
         if st.button("❌", key=f"dislike_{biz['id']}"):
             st.session_state.current_index += 1
+            st.session_state[gallery_key] = 0
             st.experimental_rerun()
     with c2:
         if st.button("ℹ️", key=f"info_{biz['id']}"):
@@ -312,25 +340,27 @@ def render_matching_screen(player_label, player_name, likes_key):
             likes.add(biz['id'])
             st.session_state[likes_key] = likes
             st.session_state.current_index += 1
+            st.session_state[gallery_key] = 0
             st.experimental_rerun()
     st.markdown('</div>', unsafe_allow_html=True)
-    # Info expander (custom)
+    # --- Info Expander (custom) ---
     if st.session_state.get(f"show_info_{biz['id']}", False):
-        st.markdown(f"<div style='margin: 0 auto 24px auto; max-width: 370px; background: #f9f9f9; border-radius:18px; padding:18px 20px; color:#333; font-size:1.07rem;'>", unsafe_allow_html=True)
+        st.markdown(f"<div style='margin: 0 auto 18px auto; max-width: 370px; background: #191919; border-radius:18px; padding:16px 18px; color:#fff; font-size:1.04rem;'>", unsafe_allow_html=True)
         st.markdown(f"**Address:** {biz['address']}")
         st.markdown(f"**Phone:** {biz['phone']}")
         st.markdown(f"[View on Yelp]({biz['yelp_url']})")
         st.markdown("</div>", unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
-    # Progress dots (optional)
-    dots = ''.join([f"<span style='font-size:2.2rem; color:{'#FFDE59' if i==idx else '#eee'};'>•</span>" for i in range(total)])
-    st.markdown(f"<div style='text-align:center; margin-top:1.5rem;'>{dots}</div>", unsafe_allow_html=True)
+    # --- Progress Dots ---
+    dots = ''.join([f"<span style='font-size:2.2rem; color:{'#FFDE59' if i==idx else '#444'};'>•</span>" for i in range(total)])
+    st.markdown(f"<div style='text-align:center; margin-top:1.1rem;'>{dots}</div>", unsafe_allow_html=True)
     if st.button("I'm Done with My Choices", key="done_choices_bottom"):
         st.session_state.current_index = 0
         if st.session_state.app_stage == "player1_matching":
             st.session_state.app_stage = "player2_matching"
         else:
             st.session_state.app_stage = "results"
+        st.experimental_rerun()
 
 def render_results_screen():
     st.header("Mutual Likes")
