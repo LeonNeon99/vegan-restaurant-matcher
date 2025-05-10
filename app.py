@@ -128,16 +128,53 @@ def main():
         st.error(ss.error_message)
         ss.error_message = ""
 
+def get_location_suggestions(query, api_key):
+    """Fetch location suggestions from OpenCage API for autocomplete."""
+    if not query or not api_key or len(query) < 2:
+        return []
+    url = "https://api.opencagedata.com/geocode/v1/json"
+    params = {"q": query, "key": api_key, "limit": 5, "no_annotations": 1, "language": "en"}
+    try:
+        resp = requests.get(url, params=params, timeout=6)
+        resp.raise_for_status()
+        data = resp.json()
+        suggestions = []
+        for result in data.get("results", []):
+            formatted = result.get("formatted")
+            if formatted:
+                suggestions.append(formatted)
+        return suggestions
+    except Exception:
+        return []
+
 def render_setup_screen():
-    st.header("Setup: Enter Details")
+    st.markdown("""
+        <style>
+        .setup-title { font-family: 'Montserrat', 'Lato', 'Roboto', sans-serif; font-size:2.2rem; font-weight:700; color:#222; margin-bottom:0.6em; }
+        .setup-label { font-family: 'Montserrat', 'Lato', 'Roboto', sans-serif; font-size:1.1rem; font-weight:600; color:#222; margin-bottom:0.25em; }
+        .setup-input { font-size:1.07rem; }
+        .setup-tip { color:#888; font-size:0.98rem; margin-top:1.5em; }
+        </style>
+    """, unsafe_allow_html=True)
+    st.markdown('<div class="setup-title">Setup: Enter Details</div>', unsafe_allow_html=True)
     col1, col2 = st.columns(2)
     with col1:
-        player1 = st.text_input("Player 1 Name", key="player1_name_input", value=st.session_state.player1_name)
-        player2 = st.text_input("Player 2 Name", key="player2_name_input", value=st.session_state.player2_name)
+        st.markdown('<div class="setup-label">Player 1 Name</div>', unsafe_allow_html=True)
+        player1 = st.text_input(" ", key="player1_name_input", value=st.session_state.player1_name, label_visibility="collapsed")
+        st.markdown('<div class="setup-label">Player 2 Name</div>', unsafe_allow_html=True)
+        player2 = st.text_input("  ", key="player2_name_input", value=st.session_state.player2_name, label_visibility="collapsed")
     with col2:
-        location = st.text_input("Location (City, State or Zip)", key="location_input", value=st.session_state.search_location_text)
-        radius = st.slider("Search Radius", min_value=1, max_value=25, value=3, step=1, format="%d km")
+        st.markdown('<div class="setup-label">Location (City, Street, or Zip)</div>', unsafe_allow_html=True)
         api_key = st.text_input("Yelp API Key", type="password", key="api_key_input", value=st.session_state.api_key)
+        # Autocomplete for location
+        opencage_key = st.secrets.get("OPENCAGE_API_KEY", "")
+        location_query = st.text_input("Type location...", key="location_input", value=st.session_state.search_location_text, label_visibility="collapsed")
+        suggestions = get_location_suggestions(location_query, opencage_key)
+        location = location_query
+        if suggestions:
+            location = st.selectbox("Suggestions:", suggestions, index=0, key="location_suggestion")
+        st.markdown('<div class="setup-label">Search Radius</div>', unsafe_allow_html=True)
+        radius = st.slider(" ", min_value=1, max_value=25, value=3, step=1, format="%d km", label_visibility="collapsed")
     if st.button("Find Restaurants", type="primary"):
         if not all([player1.strip(), player2.strip(), location.strip(), api_key.strip()]):
             st.error("Please fill in all fields and provide your Yelp API Key.")
@@ -162,24 +199,82 @@ def render_setup_screen():
         st.session_state.app_stage = "player1_matching"
     st.markdown("""
     <hr style='margin-top:2rem;margin-bottom:2rem;'>
-    <div style='color:#888;font-size:0.95rem;'>
-    <b>Tip:</b> Get your Yelp API key at <a href='https://www.yelp.com/developers/v3/manage_app' target='_blank'>Yelp Developers</a>.
+    <div class='setup-tip'>
+    <b>Tip:</b> Get your Yelp API key at <a href='https://www.yelp.com/developers/v3/manage_app' target='_blank'>Yelp Developers</a>.<br>
+    <b>Autocomplete:</b> Start typing a city, street, or zip code and pick from the dropdown.
     </div>
     """, unsafe_allow_html=True)
 
 def render_matching_screen(player_label, player_name, likes_key):
-    st.header(f"{player_label}'s Turn - Picking in {st.session_state.search_location_text} (within {st.session_state.search_radius_km} km)")
+    st.markdown("""
+        <style>
+        body { font-family: 'Montserrat', 'Lato', 'Roboto', sans-serif; }
+        .centered-card {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            min-height: 80vh;
+        }
+        .bumble-card {
+            background: #fff;
+            border-radius: 32px;
+            box-shadow: 0 8px 32px #0002;
+            width: 370px;
+            padding: 0;
+            margin: 0 auto 32px auto;
+            position: relative;
+            overflow: hidden;
+        }
+        .bumble-card img {
+            width: 100%;
+            height: 260px;
+            object-fit: cover;
+            border-top-left-radius: 32px;
+            border-top-right-radius: 32px;
+        }
+        .card-content {
+            padding: 24px 24px 12px 24px;
+        }
+        .card-title {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #222;
+        }
+        .card-sub {
+            color: #555;
+            margin-bottom: 12px;
+        }
+        .action-row {
+            display: flex; justify-content: space-evenly; margin: 24px 0 12px 0;
+        }
+        .action-btn {
+            background: #fff;
+            border-radius: 50%;
+            width: 72px; height: 72px;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 2px 8px #0002;
+            font-size: 2.4rem;
+            border: 4px solid #FFDE59;
+            transition: box-shadow 0.2s, border-color 0.2s;
+            margin: 0 18px;
+            cursor: pointer;
+        }
+        .action-btn.like { border-color: #27ae60; }
+        .action-btn.dislike { border-color: #e74c3c; }
+        .action-btn:hover { box-shadow: 0 6px 24px #0003; }
+        .bumble-yellow { color: #FFDE59; }
+        </style>
+    """, unsafe_allow_html=True)
     restaurants = st.session_state.restaurants_data
-    likes = st.session_state[likes_key]
+    likes = set(st.session_state[likes_key])
     idx = st.session_state.current_index
     total = len(restaurants)
+
+    st.markdown(f"<div style='text-align:center; margin-bottom:1.5rem;'><span style='font-size:1.6rem;font-weight:600;'>🐝 {player_label}'s Turn</span><br><span style='color:#888;font-size:1.05rem;'>Picking in <b>{st.session_state.search_location_text}</b> (within <b>{st.session_state.search_radius_km} km</b>)</span></div>", unsafe_allow_html=True)
 
     if total == 0:
         st.error("No restaurants to display. Please restart.")
         return
     if idx >= total:
-        # End of list for this player
-        if st.button("I'm Done with My Choices"):
+        if st.button("I'm Done with My Choices", key="done_choices"):
             st.session_state.current_index = 0
             if st.session_state.app_stage == "player1_matching":
                 st.session_state.app_stage = "player2_matching"
@@ -188,40 +283,48 @@ def render_matching_screen(player_label, player_name, likes_key):
         return
 
     biz = restaurants[idx]
-    with st.container():
-        st.markdown(f"<div class='restaurant-card'>", unsafe_allow_html=True)
-        # Main image and gallery
-        if biz.get("image_url"):
-            if st.button("View Gallery", key=f"gallery_{biz['id']}"):
-                st.image([biz["image_url"]] + biz.get("photos", []), width=350, caption=["Main"] + [f"Photo {i+1}" for i in range(len(biz.get("photos", [])))] )
-            else:
-                st.image(biz["image_url"], width=350)
-        st.markdown(f"### {biz['name']}")
-        st.markdown(f"**Cuisine:** {', '.join(biz['categories']) if biz['categories'] else 'N/A'}")
-        st.markdown(f"**Rating:** {biz['rating']} ⭐ ({biz['review_count']} reviews)")
-        if biz.get("distance") is not None:
-            st.markdown(f"**Distance:** {meters_to_km(biz['distance']):.2f} km ({meters_to_miles(biz['distance']):.2f} mi)")
-        # Like/Dislike buttons
-        c1, c2 = st.columns([1,1])
-        with c1:
-            if st.button("❤️ Like", key=f"like_{biz['id']}"):
-                likes.add(biz['id'])
-                st.session_state.current_index += 1
-                st.experimental_rerun()
-        with c2:
-            if st.button("❌ Dislike", key=f"dislike_{biz['id']}"):
-                st.session_state.current_index += 1
-                st.experimental_rerun()
-        # More info expander
-        with st.expander("More Info"):
-            st.markdown(f"**Address:** {biz['address']}")
-            st.markdown(f"**Phone:** {biz['phone']}")
-            st.markdown(f"[View on Yelp]({biz['yelp_url']})")
+    st.markdown('<div class="centered-card">', unsafe_allow_html=True)
+    st.markdown('<div class="bumble-card">', unsafe_allow_html=True)
+    # Main image
+    st.markdown(f'<img src="{biz["image_url"]}" alt="{biz["name"]}">', unsafe_allow_html=True)
+    st.markdown(f'''
+        <div class="card-content">
+            <div class="card-title">{biz["name"]}</div>
+            <div class="card-sub">{', '.join(biz['categories']) if biz['categories'] else 'N/A'}</div>
+            <div class="card-sub">⭐ {biz['rating']} ({biz['review_count']} reviews)</div>
+            {f'<div class="card-sub">📍 {meters_to_km(biz["distance"]):.2f} km ({meters_to_miles(biz["distance"]):.2f} mi)</div>' if biz.get('distance') is not None else ''}
+        </div>
+    ''', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    # Action row
+    st.markdown('<div class="action-row">', unsafe_allow_html=True)
+    c1, c2, c3 = st.columns([1,1,1])
+    with c1:
+        if st.button("❌", key=f"dislike_{biz['id']}"):
+            st.session_state.current_index += 1
+            st.experimental_rerun()
+    with c2:
+        if st.button("ℹ️", key=f"info_{biz['id']}"):
+            st.session_state[f"show_info_{biz['id']}"] = not st.session_state.get(f"show_info_{biz['id']}", False)
+    with c3:
+        if st.button("💛", key=f"like_{biz['id']}"):
+            likes.add(biz['id'])
+            st.session_state[likes_key] = likes
+            st.session_state.current_index += 1
+            st.experimental_rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+    # Info expander (custom)
+    if st.session_state.get(f"show_info_{biz['id']}", False):
+        st.markdown(f"<div style='margin: 0 auto 24px auto; max-width: 370px; background: #f9f9f9; border-radius:18px; padding:18px 20px; color:#333; font-size:1.07rem;'>", unsafe_allow_html=True)
+        st.markdown(f"**Address:** {biz['address']}")
+        st.markdown(f"**Phone:** {biz['phone']}")
+        st.markdown(f"[View on Yelp]({biz['yelp_url']})")
         st.markdown("</div>", unsafe_allow_html=True)
-    # Navigation
-    if idx < total-1:
-        st.button("Next Restaurant", key=f"next_{biz['id']}", on_click=lambda: setattr(st.session_state, 'current_index', idx+1))
-    if st.button("I'm Done with My Choices"):
+    st.markdown('</div>', unsafe_allow_html=True)
+    # Progress dots (optional)
+    dots = ''.join([f"<span style='font-size:2.2rem; color:{'#FFDE59' if i==idx else '#eee'};'>•</span>" for i in range(total)])
+    st.markdown(f"<div style='text-align:center; margin-top:1.5rem;'>{dots}</div>", unsafe_allow_html=True)
+    if st.button("I'm Done with My Choices", key="done_choices_bottom"):
         st.session_state.current_index = 0
         if st.session_state.app_stage == "player1_matching":
             st.session_state.app_stage = "player2_matching"
