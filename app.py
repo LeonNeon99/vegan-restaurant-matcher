@@ -292,31 +292,30 @@ def render_matching_screen(player_label, player_name, likes_key):
     if gallery_key not in st.session_state:
         st.session_state[gallery_key] = 0
     images = biz.get("photos") or ([biz["image_url"]] if biz.get("image_url") else [])
-    if not images:
-        images = ["https://via.placeholder.com/320x220?text=No+Image"]
+    images = images[:5] if images else ["https://via.placeholder.com/320x220?text=No+Image"]
     gallery_idx = st.session_state[gallery_key]
     gallery_idx = max(0, min(gallery_idx, len(images)-1))
     st.session_state[gallery_key] = gallery_idx
 
     st.markdown('<div class="centered-card">', unsafe_allow_html=True)
     st.markdown('<div class="bumble-card">', unsafe_allow_html=True)
-    # --- Gallery with Arrows ---
+    # --- Gallery with Arrows (top of card, minimal margin) ---
     st.markdown('<div class="gallery-container">', unsafe_allow_html=True)
-    left, imgcol, right = st.columns([1,4,1], gap="small")
-    with left:
+    gallery_cols = st.columns([1,6,1], gap="small")
+    with gallery_cols[0]:
         if st.button("⟵", key=f"gallery_left_{biz['id']}", disabled=(gallery_idx==0)):
             st.session_state[gallery_key] = max(0, gallery_idx-1)
             st.experimental_rerun()
-    with imgcol:
+    with gallery_cols[1]:
         st.image(images[gallery_idx], use_column_width=True, output_format="JPEG", caption=None)
-    with right:
+    with gallery_cols[2]:
         if st.button("⟶", key=f"gallery_right_{biz['id']}", disabled=(gallery_idx==len(images)-1)):
             st.session_state[gallery_key] = min(len(images)-1, gallery_idx+1)
             st.experimental_rerun()
     st.markdown('</div>', unsafe_allow_html=True)
-    # --- Card Content ---
+    # --- Card Content (minimal vertical space) ---
     st.markdown(f'''
-        <div class="card-content">
+        <div class="card-content" style="padding-top:10px; padding-bottom:8px;">
             <div class="card-title">{biz["name"]}</div>
             <div class="card-sub">{', '.join(biz['categories']) if biz['categories'] else 'N/A'}</div>
             <div class="card-sub">⭐ {biz['rating']} ({biz['review_count']} reviews)</div>
@@ -331,7 +330,7 @@ def render_matching_screen(player_label, player_name, likes_key):
         if st.button("❌", key=f"dislike_{biz['id']}"):
             st.session_state.current_index += 1
             st.session_state[gallery_key] = 0
-            st.experimental_rerun()
+            return
     with c2:
         if st.button("ℹ️", key=f"info_{biz['id']}"):
             st.session_state[f"show_info_{biz['id']}"] = not st.session_state.get(f"show_info_{biz['id']}", False)
@@ -341,7 +340,7 @@ def render_matching_screen(player_label, player_name, likes_key):
             st.session_state[likes_key] = likes
             st.session_state.current_index += 1
             st.session_state[gallery_key] = 0
-            st.experimental_rerun()
+            return
     st.markdown('</div>', unsafe_allow_html=True)
     # --- Info Expander (custom) ---
     if st.session_state.get(f"show_info_{biz['id']}", False):
