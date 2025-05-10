@@ -150,10 +150,11 @@ def get_location_suggestions(query, api_key):
 def render_setup_screen():
     st.markdown("""
         <style>
-        .setup-title { font-family: 'Montserrat', 'Lato', 'Roboto', sans-serif; font-size:2.2rem; font-weight:700; color:#222; margin-bottom:0.6em; }
-        .setup-label { font-family: 'Montserrat', 'Lato', 'Roboto', sans-serif; font-size:1.1rem; font-weight:600; color:#222; margin-bottom:0.25em; }
-        .setup-input { font-size:1.07rem; }
-        .setup-tip { color:#888; font-size:0.98rem; margin-top:1.5em; }
+        .setup-title { font-family: 'Montserrat', 'Lato', 'Roboto', sans-serif; font-size:2.2rem; font-weight:700; color:#fff; margin-bottom:0.6em; }
+        .setup-label { font-family: 'Montserrat', 'Lato', 'Roboto', sans-serif; font-size:1.1rem; font-weight:600; color:#fff; margin-bottom:0.25em; }
+        .setup-input, .stTextInput input, .stTextInput label, .stSelectbox label, .stSlider label, .stSlider .css-1cpxqw2, .stSlider .css-14xtw13 { color: #fff !important; }
+        .setup-tip { color:#eee; font-size:0.98rem; margin-top:1.5em; }
+        section.main > div { background: #222 !important; }
         </style>
     """, unsafe_allow_html=True)
     st.markdown('<div class="setup-title">Setup: Enter Details</div>', unsafe_allow_html=True)
@@ -163,10 +164,10 @@ def render_setup_screen():
         player1 = st.text_input(" ", key="player1_name_input", value=st.session_state.player1_name, label_visibility="collapsed")
         st.markdown('<div class="setup-label">Player 2 Name</div>', unsafe_allow_html=True)
         player2 = st.text_input("  ", key="player2_name_input", value=st.session_state.player2_name, label_visibility="collapsed")
+        st.markdown('<div class="setup-label">Yelp API Key</div>', unsafe_allow_html=True)
+        api_key = st.text_input(" ", type="password", key="api_key_input", value=st.session_state.api_key, label_visibility="collapsed")
     with col2:
         st.markdown('<div class="setup-label">Location (City, Street, or Zip)</div>', unsafe_allow_html=True)
-        api_key = st.text_input("Yelp API Key", type="password", key="api_key_input", value=st.session_state.api_key)
-        # Autocomplete for location
         opencage_key = st.secrets.get("OPENCAGE_API_KEY", "")
         location_query = st.text_input("Type location...", key="location_input", value=st.session_state.search_location_text, label_visibility="collapsed")
         suggestions = get_location_suggestions(location_query, opencage_key)
