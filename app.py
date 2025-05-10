@@ -198,7 +198,7 @@ def render_setup_screen():
         st.session_state.player2_likes = set()
         st.session_state.current_index = 0
         st.session_state.app_stage = "player1_matching"
-        st.experimental_rerun()
+        return
     st.markdown("""
     <hr style='margin-top:2rem;margin-bottom:2rem;'>
     <div class='setup-tip'>
