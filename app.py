@@ -10,18 +10,29 @@ import requests
 import math
 
 YELP_API_BASE_URL = "https://api.yelp.com/v3/businesses/search"
-YELP_GEOCODE_API = "https://nominatim.openstreetmap.org/search"
+# OpenCage Geocoding API endpoint (recommended for production use)
+OPENCAGE_API_URL = "https://api.opencagedata.com/geocode/v1/json"
 
 # --- Helper Functions ---
 def geocode_location(location_text):
-    """Geocode a location string to (lat, lon) using OpenStreetMap Nominatim."""
+    """
+    Geocode a location string to (lat, lon) using OpenCage Geocoding API.
+    Requires an API key set in Streamlit secrets as OPENCAGE_API_KEY.
+    """
+    import os
+    OPENCAGE_API_KEY = os.environ.get("OPENCAGE_API_KEY") or st.secrets.get("OPENCAGE_API_KEY", None)
+    if not OPENCAGE_API_KEY:
+        st.error("OpenCage API key not set. Please add it to Streamlit secrets as OPENCAGE_API_KEY.")
+        return None, None
+    params = {"q": location_text, "key": OPENCAGE_API_KEY, "limit": 1}
     try:
-        params = {"q": location_text, "format": "json"}
-        resp = requests.get(YELP_GEOCODE_API, params=params, timeout=8)
+        resp = requests.get(OPENCAGE_API_URL, params=params, timeout=8)
         resp.raise_for_status()
         data = resp.json()
-        if data:
-            return float(data[0]["lat"]), float(data[0]["lon"])
+        if data["results"]:
+            lat = data["results"][0]["geometry"]["lat"]
+            lon = data["results"][0]["geometry"]["lng"]
+            return lat, lon
     except Exception as e:
         st.error(f"Geocoding failed: {e}")
     return None, None
