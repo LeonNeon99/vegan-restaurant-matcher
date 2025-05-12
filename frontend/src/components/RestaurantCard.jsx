@@ -19,9 +19,8 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import Collapse from '@mui/material/Collapse';
 import Grid from '@mui/material/Grid';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { Map, Marker } from '@vis.gl/react-google-maps';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
-import 'leaflet/dist/leaflet.css';
 
 function RestaurantCard({ restaurant, hideButtons, isMatched }) {
   const [detailsLoading, setDetailsLoading] = useState(false);
@@ -276,22 +275,24 @@ function RestaurantCard({ restaurant, hideButtons, isMatched }) {
                        <LocationOnIcon fontSize="small" sx={{ mr: 0.5 }} /> Location Map
                      </Typography>
                      <Box sx={{ height: '200px', width: '100%' }}>
-                       <MapContainer 
-                         center={[restaurant.coordinates.latitude, restaurant.coordinates.longitude]}
-                         zoom={14}
-                         scrollWheelZoom={false}
+                       <Map
+                         defaultCenter={{
+                            lat: restaurant.coordinates.latitude, 
+                            lng: restaurant.coordinates.longitude
+                         }}
+                         defaultZoom={14}
+                         gestureHandling={'cooperative'}
+                         disableDefaultUI={true}
+                         mapId={'YOUR_UNIQUE_MAP_ID'}
                          style={{ height: '100%', width: '100%' }}
                        >
-                         <TileLayer
-                           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                         <Marker 
+                           position={{
+                             lat: restaurant.coordinates.latitude,
+                             lng: restaurant.coordinates.longitude
+                           }}
                          />
-                         <Marker position={[restaurant.coordinates.latitude, restaurant.coordinates.longitude]}>
-                           <Popup>
-                             {restaurant.name} <br /> {restaurant.location?.display_address?.join(', ')}
-                           </Popup>
-                         </Marker>
-                       </MapContainer>
+                       </Map>
                      </Box>
                   </Box>
                 ) : (
