@@ -1,5 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { Box, Button, Typography, Stack, CircularProgress, LinearProgress } from '@mui/material';
+import React from 'react';
+import { Box, Button, Typography, Stack, CircularProgress, LinearProgress, IconButton } from '@mui/material';
+import FavoriteIcon from '@mui/icons-material/Favorite';
+import CloseIcon from '@mui/icons-material/Close';
+import StarIcon from '@mui/icons-material/Star';
 
 import RestaurantCard from '../components/RestaurantCard';
 
@@ -50,6 +53,10 @@ export default function MatchPage({
 
   const checkSuperliked = typeof isSuperliked === 'function' ? isSuperliked(biz.id) : false;
 
+  const handleDislikeClick = () => onDislike(biz.id);
+  const handleLikeClick = () => onLike(biz.id);
+  const handleSuperlikeClick = () => onSuperlike(biz.id);
+
   return (
     <Box sx={{ minHeight: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', bgcolor: 'background.default', p: 2 }}>
       <Typography variant="h4" align="center" sx={{ mb: 2 }}>{player ? `Player: ${player}` : ''}</Typography>
@@ -59,15 +66,36 @@ export default function MatchPage({
 
       <RestaurantCard 
         restaurant={biz} 
-        onLike={onLike}
-        onDislike={onDislike}
-        onSuperlike={onSuperlike}
         isSuperliked={checkSuperliked}
-        hideButtons={false}
+        hideButtons={true}
         isMatched={false}
       />
 
-      <Box display="flex" justifyContent="center" sx={{ mt: 3 }}>
+      <Stack direction="row" justifyContent="center" spacing={3} sx={{ mt: 3, mb: 3 }}>
+        <IconButton color="error" onClick={handleDislikeClick} size="large" sx={{ border: '2px solid', borderColor: 'error.light', width: 64, height: 64 }}>
+          <CloseIcon fontSize="inherit" />
+        </IconButton>
+        <IconButton 
+          color="primary"
+          onClick={handleSuperlikeClick} 
+          size="large" 
+          sx={{ 
+            border: '2px solid', 
+            borderColor: checkSuperliked ? 'primary.main' : 'primary.light',
+            width: 64, 
+            height: 64,
+            transform: 'scale(1.1)',
+            bgcolor: checkSuperliked ? 'primary.light' : 'transparent'
+          }}
+        >
+          <StarIcon fontSize="inherit" />
+        </IconButton>
+        <IconButton color="success" onClick={handleLikeClick} size="large" sx={{ border: '2px solid', borderColor: 'success.light', width: 64, height: 64 }}>
+          <FavoriteIcon fontSize="inherit" />
+        </IconButton>
+      </Stack>
+
+      <Box display="flex" justifyContent="center">
         <Button variant="outlined" color="primary" onClick={onFinish} sx={{ minWidth: 180 }}>
           {currentIdx === restaurants.length - 1 ? 'Finish & See Matches' : 'Finish Turn'}
         </Button>

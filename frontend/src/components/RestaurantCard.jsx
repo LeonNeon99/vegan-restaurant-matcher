@@ -45,17 +45,33 @@ function RestaurantCard({ restaurant, onLike, onDislike, onSuperlike, isSuperlik
 
     try {
       const fetchUrl = `/restaurant-details/${restaurant.id}`;
-      const response = await fetch(fetchUrl);
+      const response = await fetch(fetchUrl, { cache: 'no-cache' });
 
+      const contentType = response.headers.get("content-type");
       if (!response.ok) {
-        let errorText = `Error fetching details: ${response.statusText}`;
-        try {
-            const errorData = await response.json();
-            errorText = errorData.detail || errorText;
-        } catch (jsonError) {
+        let errorText = `Error fetching details: ${response.status} ${response.statusText}`;
+        if (contentType && contentType.includes("application/json")) {
+            try {
+                const errorData = await response.json();
+                errorText = errorData.detail || errorText;
+            } catch (jsonError) { 
+                console.error("Could not parse error JSON response", jsonError);
+            }
+        } else {
+             try {
+                 const textResponse = await response.text();
+                 console.error("Non-JSON error response body (first 100 chars):", textResponse.substring(0,100));
+             } catch (textError) { /* Ignore */ }
         }
+        console.error('Fetch error:', errorText); 
         throw new Error(errorText);
       }
+      
+      if (!contentType || !contentType.includes("application/json")) {
+        console.error('Received non-JSON response:', contentType);
+        throw new Error(`Expected JSON but received ${contentType || 'unknown type'}`);
+      }
+
       const data = await response.json();
       setDetailsData(data);
     } catch (error) {
@@ -198,24 +214,10 @@ function RestaurantCard({ restaurant, onLike, onDislike, onSuperlike, isSuperlik
         )}
       </CardContent>
 
-      <CardActions sx={{ justifyContent: 'space-between', padding: '0 16px 8px 16px' }}>
+      <CardActions sx={{ justifyContent: 'flex-start', padding: '0 16px 8px 16px' }}>
         <IconButton onClick={handleFetchDetails} aria-label="show details">
           <InfoIcon />
         </IconButton>
-        {!hideButtons && (
-          <Box>
-            <Button size="small" color="error" onClick={() => onDislike(restaurant.id)}>Dislike</Button>
-            <Button size="small" color="success" onClick={() => onLike(restaurant.id)}>Like</Button>
-            <Button 
-              size="small" 
-              color="primary" 
-              onClick={() => onSuperlike(restaurant.id)}
-              variant={isSuperliked ? "contained" : "outlined"}
-            >
-              Superlike
-            </Button>
-          </Box>
-        )}
       </CardActions>
     </Card>
   );
