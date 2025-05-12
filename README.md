@@ -2,8 +2,8 @@
 
 A modern, full-stack web app for matching vegan restaurants, inspired by apps like Bumble.
 
-- **Frontend:** Vite + React + Material UI (MUI)
-- **Backend:** FastAPI (Python) with Yelp & OpenCage API integration
+- **Frontend:** Vite + React + Material UI (MUI) + Google Maps
+- **Backend:** FastAPI (Python) with Yelp & Google Maps Platform API integration
 - **Deployment:** Netlify (frontend) & Render (backend)
 
 ---
@@ -26,23 +26,29 @@ A modern, full-stack web app for matching vegan restaurants, inspired by apps li
 ## Features
 
 - **User Flow:**
-  - Enter two player names, location (with autocomplete), and search radius
-  - Fetch vegan restaurants near the location (Yelp API)
-  - Players swipe/like/dislike restaurants in turns (MatchPage)
-  - ResultsPage shows mutual likes with details and Yelp links
-  - Option to restart the search
+  - Enter two player names, location (with Google Places autocomplete), search radius, and optional filters (price, rating, sort order).
+  - Fetch vegan restaurants near the location (Yelp API).
+  - Players swipe/like/dislike/superlike restaurants in turns (`MatchPage`) with enhanced UI.
+  - `RestaurantCard` shows details (photos, hours, reviews, map) on demand.
+  - `ResultsPage` shows mutual likes with enhanced card layout and superlike indicators.
+  - Option to restart the search.
 
 - **Backend:**
-  - `/geocode` — Geocodes a location string (OpenCage API)
-  - `/autocomplete_location` — Location autocomplete (OpenCage API)
-  - `/restaurants` — Returns vegan restaurants for given lat/lng/radius (Yelp API)
-  - CORS enabled for frontend-backend communication
+  - `/geocode` — Geocodes a location string using Google Geocoding API.
+  - `/autocomplete_location` — Location autocomplete using Google Places API.
+  - `/restaurants` — Returns vegan restaurants for given lat/lng/radius (Yelp API), supporting filtering (price, min_rating) and sorting (distance, rating).
+  - `/restaurant-details/{business_id}` — Returns details (photos, hours, reviews) for a specific restaurant from Yelp.
+  - CORS enabled for frontend-backend communication.
 
 - **Frontend:**
-  - Responsive, modern UI (Material UI)
-  - Autocomplete for locations
-  - Error handling and loading states
-  - Results page with mutual likes and "View on Yelp" links
+  - Responsive, modern UI (Material UI).
+  - Google Places Autocomplete for locations.
+  - Filtering/sorting options on setup page.
+  - Swipeable `RestaurantCard` component showing core info, with expandable details (photos, hours, reviews, Google Map).
+  - Visual indicator on `MatchPage` if the other player superliked the current card.
+  - Enhanced `ResultsPage` with grid layout, restaurant cards, and superlike indicators.
+  - Error handling and loading states.
+  - Results page with mutual likes and "View on Yelp" links.
 
 ---
 
@@ -51,8 +57,12 @@ A modern, full-stack web app for matching vegan restaurants, inspired by apps li
 - **Frontend:** Deployed to Netlify ([example](https://vegan-restaurant-matcher.windsurf.build))
 - **Backend:** Deployed to Render ([example](https://vegan-restaurant-matcher.onrender.com))
 - **Environment Variables:**
-  - Backend: `.env` file at project root
-  - Frontend: `/frontend/.env.production` (set `VITE_API_URL` to backend URL)
+  - **Backend (`.env` file at project root):**
+    - `YELP_API_KEY`: Your Yelp Fusion API key.
+    - `GOOGLE_MAPS_API_KEY`: Your Google Cloud API key (enabled for Places API, Geocoding API).
+  - **Frontend (`/frontend/.env.production` or similar):**
+    - `VITE_API_URL`: The URL of your deployed backend (e.g., `https://your-backend.onrender.com`).
+    - `VITE_GOOGLE_MAPS_API_KEY`: Your Google Cloud API key (enabled for Maps JavaScript API). Needs `VITE_` prefix.
 
 ---
 
@@ -77,14 +87,25 @@ npm run dev
 ---
 
 ## API Keys
-- **Yelp API:** [Get one here](https://www.yelp.com/developers/v3/manage_app)
-- **OpenCage API:** [Get one here](https://opencagedata.com/api)
+- **Yelp API:** [Get one here](https://www.yelp.com/developers/v3/manage_app). Used by the backend.
+- **Google Maps Platform API Key:** [Setup instructions here](https://developers.google.com/maps/gmp-get-started). You need a single key with the following APIs enabled in your Google Cloud Project:
+    - **Places API** (for backend autocomplete)
+    - **Geocoding API** (for backend geocoding)
+    - **Maps JavaScript API** (for frontend map display)
+  Ensure you have billing enabled on the project and restrict the key appropriately.
 
-Add both keys to your `.env` file in the project root:
-```
-YELP_API_KEY=your_yelp_api_key_here
-OPENCAGE_API_KEY=your_opencage_api_key_here
-```
+Add the keys to your environment:
+1.  **Backend:** Create a `.env` file in the project root:
+    ```
+    YELP_API_KEY=your_yelp_api_key_here
+    GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
+    ```
+    *(Ensure `.env` is in `.gitignore`)*.
+2.  **Frontend:** Create a `.env` file in the `/frontend` directory (e.g., `.env.development` or `.env.local` for local testing):
+    ```
+    VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
+    VITE_API_URL=http://127.0.0.1:8000 # Or your backend dev server URL
+    ```
 
 ---
 
@@ -92,7 +113,7 @@ OPENCAGE_API_KEY=your_opencage_api_key_here
 
 - **Quick Changes:**
   - You can push changes directly to your main branch and redeploy (Netlify/Render will auto-build)
-  - For critical production apps, it’s best to use a feature branch or fork, test locally, then merge and deploy
+  - For critical production apps, it's best to use a feature branch or fork, test locally, then merge and deploy
 - **Recommended:**
   - Create a feature branch or fork for major changes
   - Test locally (`npm run dev` for frontend, `uvicorn main:app --reload` for backend)
@@ -107,20 +128,9 @@ Feel free to fork, open issues, or contribute!
 
 ---
 
-## Features
-- Player setup with names, location autocomplete, and search radius.
-- Swipeable/like/dislike cards for vegan restaurants (Bumble-style UI).
-- Gallery for multiple restaurant images.
-- Results screen for mutual likes.
-- Beautiful, modern, mobile-friendly design.
+## Development Roadmap
 
----
-
-## Next Steps
-- [ ] Scaffold the frontend (Vite + React + MUI)
-- [x] Scaffold the backend (FastAPI)
-- [ ] Connect frontend to backend endpoints
-- [ ] Polish UI/UX
+See `DEVELOPMENT_PIPELINE.md` for the detailed feature roadmap and current progress.
 
 ---
 
