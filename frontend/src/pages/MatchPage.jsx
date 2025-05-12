@@ -46,8 +46,8 @@ export default function MatchPage({ restaurants, isLoading, error, onLike, onDis
     return (
       <Box sx={{ minHeight: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', bgcolor: 'background.default', p: 2 }}>
         <Typography variant="h5" align="center" gutterBottom>No Restaurants Found</Typography>
-        <Typography align="center" sx={{ mb: 3 }}>Couldn't find any vegan restaurants matching your search criteria.</Typography>
-        <Button variant="contained" onClick={onRestart}>Try Again</Button>
+        <Typography align="center" sx={{ mb: 3 }}>We couldn't find any vegan restaurants matching your current criteria. Please try adjusting the location, radius, or filters.</Typography>
+        <Button variant="contained" onClick={onRestart}>Search Again</Button>
       </Box>
     );
   }

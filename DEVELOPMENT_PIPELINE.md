@@ -94,21 +94,26 @@ This document outlines planned improvements and features for the Vegan Restauran
 ## 4. Enhance Restaurant Details Display
 
 *   **Goal:** Provide users with more context about each restaurant directly on the swipe cards or results page, such as opening hours, review snippets, or menu highlights.
+*   **Chosen API:** Yelp Fusion API (`/businesses/{id}` for details like photos/hours, `/businesses/{id}/reviews` for review excerpts).
 *   **Potential Solutions & Implementation:**
-    *   **Backend (`/restaurants`):**
-        *   **API Data Check:** Thoroughly review Yelp Fusion API documentation for the `/businesses/search` endpoint and potentially the `/businesses/{id}` endpoint (which provides more detail but requires extra calls). Determine if `hours`, `reviews` (often limited by Yelp policy, usually just count/rating/link), `menu_url`, or photos beyond the primary one are available.
-        *   **Data Fetching:** If essential details require a per-business lookup (like detailed hours from `/businesses/{id}`), decide on the trade-off:
-            *   Fetch basic info initially, then load details on demand when a user shows interest (e.g., taps card).
-            *   Fetch details for all restaurants upfront (increases initial load time). *Likely not ideal.*
-        *   **Endpoint Modification:** Update the `/restaurants` endpoint (or create a new one like `/restaurant/{id}/details`) to fetch and return the desired additional data.
-    *   **Frontend:**
-        *   **UI Design:** Update the restaurant card component (`MatchPage`) and the results list items (`ResultsPage`). Decide how to display new information without cluttering the interface (e.g., icons for hours, an expandable section for details, a small photo gallery component).
-        *   **Component Logic:** Modify components to receive and render the new data fields. Handle cases where data might be missing.
+    *   **Backend:**
+        *   **API Data Check:** Yelp Details API provides `photos` (array), `hours`, `price`, etc. Yelp Reviews API provides up to 3 review excerpts (`text`). Menu data is unreliable via API.
+        *   **Data Fetching Strategy:** Fetch details **on-demand** from the frontend to avoid slowing initial load.
+        *   **New Endpoint:** Create `GET /restaurant-details/{business_id}`.
+            *   Takes Yelp business ID as path parameter.
+            *   Calls Yelp's `/v3/businesses/{id}` and `/v3/businesses/{id}/reviews`.
+            *   Combines relevant data (e.g., `photos`, `hours`, `reviews` array) into a single response.
+            *   Handles potential errors from Yelp API calls.
+    *   **Frontend (`MatchPage.jsx`):**
+        *   **Trigger:** Call the new `/restaurant-details/{business_id}` endpoint when the user clicks the Info icon (`InfoIcon`).
+        *   **State:** Manage loading/error state for the detail fetch. Store fetched details (e.g., in an object keyed by business ID or within the main `restaurants` array if modifying it is preferred).
+        *   **UI Design:** Display fetched details (hours, review excerpts) within the existing `Collapse` section. Update the image gallery to use the full `photos` array from the details response. Show a loading indicator within the `Collapse` section while details are fetching.
 *   **Action Steps:**
-    1.  Research Yelp API capabilities for detailed data (hours, reviews, menus).
-    2.  Decide on a data fetching strategy (upfront vs. on-demand).
-    3.  Implement backend changes to fetch and relay the data.
-    4.  Design and implement frontend UI updates to display the enhanced details.
+    1.  Research Yelp API capabilities for detailed data (hours, reviews, menus). *(Completed)*
+    2.  Decide on a data fetching strategy (upfront vs. on-demand). *(Decision: On-demand via new backend endpoint)*
+    3.  Implement backend endpoint `GET /restaurant-details/{business_id}`.
+    4.  Implement frontend logic in `MatchPage.jsx` to call the endpoint on Info click and display fetched details.
+*   **Status:** Pending Implementation
 
 ---
 

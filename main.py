@@ -6,6 +6,8 @@ import httpx
 from dotenv import load_dotenv
 import googlemaps
 from typing import Optional
+from fastapi.responses import JSONResponse
+import logging
 
 load_dotenv()
 
@@ -154,3 +156,80 @@ async def get_restaurants(data: RestaurantsRequest):
         except Exception as exc:
             print(f"Unexpected error processing Yelp response: {exc}")
             raise HTTPException(status_code=500, detail="Internal error processing Yelp response.")
+
+@app.get("/restaurant-details/{business_id}")
+async def get_restaurant_details(business_id: str):
+    """
+    Fetches detailed information for a specific restaurant from Yelp,
+    including hours, photos, and reviews.
+    """
+    if not YELP_API_KEY:
+        logging.error("YELP_API_KEY not found in environment variables.")
+        raise HTTPException(status_code=500, detail="API key configuration error.")
+
+    headers = {"Authorization": f"Bearer {YELP_API_KEY}"}
+    details_url = f"https://api.yelp.com/v3/businesses/{business_id}"
+    reviews_url = f"https://api.yelp.com/v3/businesses/{business_id}/reviews"
+
+    details_data = {}
+    reviews_data = []
+    error_occurred = False
+
+    try:
+        # Fetch basic details (includes hours and photos)
+        async with httpx.AsyncClient() as client:
+            logging.info(f"Fetching details from Yelp: {details_url}")
+            details_response = await client.get(details_url, headers=headers)
+            details_response.raise_for_status() # Raise HTTPStatusError for bad responses (4xx or 5xx)
+            details_result = details_response.json()
+            details_data = {
+                "photos": details_result.get("photos", []),
+                "hours": details_result.get("hours", []),
+                # Include other details you might want later? e.g., phone, display_phone
+                "phone": details_result.get("phone"),
+                "display_phone": details_result.get("display_phone"),
+                "url": details_result.get("url"), # Yelp URL
+            }
+            logging.info(f"Successfully fetched details for {business_id}")
+
+    except httpx.HTTPStatusError as e:
+        logging.error(f"HTTP error fetching details for {business_id}: {e.response.status_code} - {e.response.text}")
+        error_occurred = True
+        # Don't raise immediately, try fetching reviews
+    except Exception as e:
+        logging.error(f"Error fetching details for {business_id}: {e}")
+        error_occurred = True
+
+    try:
+        # Fetch reviews
+        async with httpx.AsyncClient() as client:
+            logging.info(f"Fetching reviews from Yelp: {reviews_url}")
+            # Yelp API for reviews might have different parameters if needed, e.g., limit, sort_by
+            reviews_response = await client.get(reviews_url, headers=headers)
+            reviews_response.raise_for_status()
+            reviews_result = reviews_response.json()
+            # Extract just the review text and user name for simplicity
+            reviews_data = [
+                {"text": r.get("text"), "user": r.get("user", {}).get("name")}
+                for r in reviews_result.get("reviews", [])
+            ]
+            logging.info(f"Successfully fetched {len(reviews_data)} reviews for {business_id}")
+
+    except httpx.HTTPStatusError as e:
+        logging.error(f"HTTP error fetching reviews for {business_id}: {e.response.status_code} - {e.response.text}")
+        error_occurred = True
+    except Exception as e:
+        logging.error(f"Error fetching reviews for {business_id}: {e}")
+        error_occurred = True
+
+    # If any error occurred during the fetches, return a 500
+    if error_occurred and not (details_data or reviews_data):
+         # Only raise 500 if BOTH failed or one failed critically
+         # If one succeeded, we might still return partial data
+         raise HTTPException(status_code=500, detail=f"Failed to fetch complete details for restaurant {business_id} from Yelp.")
+
+    # Combine results
+    combined_details = {**details_data, "reviews": reviews_data}
+
+    # Return even if only partial data was fetched
+    return JSONResponse(content=combined_details)
