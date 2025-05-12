@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Button, Typography, Card, CardContent, CardMedia, IconButton, Stack } from '@mui/material';
+import { Box, Button, Typography, Card, CardContent, CardMedia, IconButton, Stack, CircularProgress } from '@mui/material';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import CloseIcon from '@mui/icons-material/Close';
 import InfoIcon from '@mui/icons-material/Info';
@@ -8,12 +8,56 @@ import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 
 import { LinearProgress, Collapse } from '@mui/material';
 
-export default function MatchPage({ restaurants, onLike, onDislike, currentIdx, player, onFinish }) {
+export default function MatchPage({ restaurants, isLoading, error, onLike, onDislike, currentIdx, player, onFinish, onRestart }) {
   const [galleryIdx, setGalleryIdx] = useState(0);
   const [infoOpen, setInfoOpen] = useState(false);
-  if (!restaurants || restaurants.length === 0) return <Typography>No restaurants found.</Typography>;
+
+  // --- Loading State --- 
+  if (isLoading) {
+    return (
+      <Box sx={{ minHeight: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', bgcolor: 'background.default', p: 2 }}>
+        <CircularProgress size={60} sx={{ mb: 3 }}/>
+        <Typography variant="h6" align="center">Finding vegan restaurants near you...</Typography>
+      </Box>
+    );
+  }
+
+  // --- Error State --- 
+  if (error) {
+    return (
+      <Box sx={{ minHeight: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', bgcolor: 'background.default', p: 2 }}>
+        <Typography variant="h5" color="error" align="center" gutterBottom>Error Finding Restaurants</Typography>
+        <Typography color="error" align="center" sx={{ mb: 3 }}>{error}</Typography>
+        <Button variant="contained" onClick={onRestart}>Start Over</Button>
+      </Box>
+    );
+  }
+  
+  // --- No Restaurants Found State --- 
+  if (!restaurants || restaurants.length === 0) { 
+    return (
+      <Box sx={{ minHeight: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', bgcolor: 'background.default', p: 2 }}>
+        <Typography variant="h5" align="center" gutterBottom>No Restaurants Found</Typography>
+        <Typography align="center" sx={{ mb: 3 }}>Couldn't find any vegan restaurants matching your search criteria.</Typography>
+        <Button variant="contained" onClick={onRestart}>Try Again</Button>
+      </Box>
+    );
+  }
+
+  // --- Restaurants Loaded - Normal Display --- 
+  // Reset gallery index if restaurant changes
+  React.useEffect(() => {
+      setGalleryIdx(0);
+      setInfoOpen(false);
+  }, [currentIdx]);
+
   const biz = restaurants[currentIdx];
-  const images = biz.photos && biz.photos.length > 0 ? biz.photos : [biz.image_url];
+  // Guard against biz being undefined if index is somehow out of bounds momentarily
+  if (!biz) {
+    return null; // Or a different loading/error state?
+  }
+
+  const images = biz.photos && biz.photos.length > 0 ? biz.photos : (biz.image_url ? [biz.image_url] : []); // Handle missing image_url
   const progress = ((currentIdx + 1) / restaurants.length) * 100;
 
   return (
@@ -26,17 +70,17 @@ export default function MatchPage({ restaurants, onLike, onDislike, currentIdx, 
         <CardContent sx={{ width: '100%' }}>
           <Typography variant="h5" align="center" gutterBottom>{biz.name}</Typography>
           <Box display="flex" alignItems="center" justifyContent="center" sx={{ mb: 2 }}>
-            <IconButton onClick={() => setGalleryIdx(idx => Math.max(idx - 1, 0))} disabled={galleryIdx === 0}>
+            <IconButton onClick={() => setGalleryIdx(idx => Math.max(idx - 1, 0))} disabled={galleryIdx === 0 || images.length <= 1}>
               <ArrowBackIosNewIcon />
             </IconButton>
             <CardMedia
               component="img"
               height="240"
-              image={images[galleryIdx]}
+              image={images.length > 0 ? images[galleryIdx] : './assets/placeholder.png'} // Fallback image
               alt={biz.name}
               sx={{ objectFit: 'cover', borderRadius: 3, mx: 1, width: 320 }}
             />
-            <IconButton onClick={() => setGalleryIdx(idx => Math.min(idx + 1, images.length - 1))} disabled={galleryIdx === images.length - 1}>
+            <IconButton onClick={() => setGalleryIdx(idx => Math.min(idx + 1, images.length - 1))} disabled={galleryIdx >= images.length - 1}>
               <ArrowForwardIosIcon />
             </IconButton>
           </Box>
@@ -51,19 +95,22 @@ export default function MatchPage({ restaurants, onLike, onDislike, currentIdx, 
           </Stack>
           <Collapse in={infoOpen}>
             <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 2, border: '1px solid #eee' }}>
-              <Typography gutterBottom><b>Address:</b> {biz.location && biz.location.display_address ? biz.location.display_address.join(', ') : ''}</Typography>
+              <Typography gutterBottom><b>Address:</b> {biz.location?.display_address?.join(', ') || 'N/A'}</Typography>
               <Typography gutterBottom><b>Phone:</b> {biz.display_phone || 'N/A'}</Typography>
               <Typography gutterBottom><b>Rating:</b> {biz.rating} ({biz.review_count} reviews)</Typography>
               <Typography gutterBottom><b>Price:</b> {biz.price || 'N/A'}</Typography>
-              <Typography gutterBottom><b>Categories:</b> {biz.categories ? biz.categories.map(cat => cat.title).join(', ') : ''}</Typography>
+              <Typography gutterBottom><b>Categories:</b> {biz.categories ? biz.categories.map(cat => cat.title).join(', ') : 'N/A'}</Typography>
               <Stack direction="row" spacing={2} sx={{ mt: 1 }}>
-                <Button onClick={() => window.open(biz.url, '_blank')} color="info" variant="contained">View on Yelp</Button>
-                {biz.menu_url && <Button onClick={() => window.open(biz.menu_url, '_blank')} color="secondary" variant="outlined">View Menu</Button>}
+                <Button onClick={() => window.open(biz.url, '_blank')} color="info" variant="contained" disabled={!biz.url}>View on Yelp</Button>
+                {/* Removed menu_url button for now as data is often missing */}
               </Stack>
             </Box>
           </Collapse>
           <Box display="flex" justifyContent="center" sx={{ mt: 3 }}>
-            <Button variant="outlined" color="primary" onClick={onFinish} sx={{ minWidth: 180 }}>Finish & Switch Player</Button>
+            {/* Changed button text slightly */}
+            <Button variant="outlined" color="primary" onClick={onFinish} sx={{ minWidth: 180 }}>
+              {currentIdx === restaurants.length - 1 ? 'Finish & See Matches' : 'Finish Turn'} 
+            </Button>
           </Box>
         </CardContent>
       </Card>
