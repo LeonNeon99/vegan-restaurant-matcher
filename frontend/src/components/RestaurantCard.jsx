@@ -23,38 +23,58 @@ function RestaurantCard({ restaurant, onLike, onDislike, onSuperlike, isSuperlik
   const [showDetails, setShowDetails] = useState(false);
 
   const handleFetchDetails = async () => {
+    console.log('Info icon clicked!', { restaurantId: restaurant?.id, currentlyShowing: showDetails });
+
     if (!restaurant || !restaurant.id) {
+      console.error("handleFetchDetails: Restaurant ID is missing.");
       setDetailsError("Restaurant ID is missing.");
       return;
     }
     // Toggle details visibility or fetch if not already fetched
     if (showDetails) {
+      console.log('Hiding details');
       setShowDetails(false);
       return;
     }
     
     if (detailsData) { // If data already fetched, just show it
+      console.log('Showing previously fetched details');
       setShowDetails(true);
       setDetailsError(null); // Clear previous errors
       return;
     }
 
+    console.log('Starting to fetch details...');
     setDetailsLoading(true);
     setDetailsError(null);
     setShowDetails(true); // Show loading indicator in details section
+    console.log('Set showDetails=true, detailsLoading=true');
 
     try {
-      const response = await fetch(`/restaurant-details/${restaurant.id}`);
+      const fetchUrl = `/restaurant-details/${restaurant.id}`;
+      console.log('Fetching from:', fetchUrl);
+      const response = await fetch(fetchUrl);
+      console.log('Fetch response status:', response.status);
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || `Error fetching details: ${response.statusText}`);
+        let errorText = `Error fetching details: ${response.statusText}`;
+        try {
+            const errorData = await response.json();
+            errorText = errorData.detail || errorText;
+        } catch (jsonError) {
+            console.error("Could not parse error response JSON", jsonError);
+        }
+        console.error('Fetch error:', errorText);
+        throw new Error(errorText);
       }
       const data = await response.json();
+      console.log('Successfully fetched details:', data);
       setDetailsData(data);
     } catch (error) {
-      console.error("Failed to fetch restaurant details:", error);
+      console.error("Failed inside fetch try-catch:", error);
       setDetailsError(error.message);
     } finally {
+      console.log('Setting detailsLoading=false');
       setDetailsLoading(false);
     }
   };
@@ -108,12 +128,24 @@ function RestaurantCard({ restaurant, onLike, onDislike, onSuperlike, isSuperlik
         )}
 
         {/* Details Section */}
+        {console.log('Rendering Details Section Check:', { showDetails, detailsLoading, detailsError, hasData: !!detailsData })}
         {showDetails && (
           <Box sx={{ mt: 2, borderTop: '1px solid #eee', pt: 2 }}>
-            {detailsLoading && <CircularProgress size={24} />}
-            {detailsError && <Alert severity="error" sx={{mb:1}}>{detailsError}</Alert>}
+            {detailsLoading && 
+              <Box sx={{display: 'flex', justifyContent: 'center', my: 2}}>
+                 {console.log("Rendering loading spinner...")}
+                <CircularProgress size={24} />
+              </Box>
+            }
+            {detailsError && 
+              <>
+                {console.log("Rendering error alert:", detailsError)}
+                <Alert severity="error" sx={{mb:1}}>{detailsError}</Alert>
+              </>
+            }
             {detailsData && !detailsLoading && (
               <>
+                 {console.log("Rendering actual details data...")}
                 {/* Photos */}
                 {detailsData.photos && detailsData.photos.length > 0 && (
                   <Box sx={{my:1}}>
