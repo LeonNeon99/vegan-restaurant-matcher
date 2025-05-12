@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Card from '@mui/material/Card';
 import CardActions from '@mui/material/CardActions';
 import CardContent from '@mui/material/CardContent';
@@ -15,15 +15,26 @@ import ImageList from '@mui/material/ImageList';
 import ImageListItem from '@mui/material/ImageListItem';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import ReviewsIcon from '@mui/icons-material/Reviews';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import Collapse from '@mui/material/Collapse';
 
-function RestaurantCard({ restaurant, onLike, onDislike, onSuperlike, isSuperliked, hideButtons, isMatched }) {
+function RestaurantCard({ restaurant, hideButtons, isMatched }) {
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [detailsData, setDetailsData] = useState(null);
   const [detailsError, setDetailsError] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [hoursExpanded, setHoursExpanded] = useState(false);
 
-  // Define API base URL, consistent with App.jsx
   const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+  useEffect(() => {
+    setShowDetails(false); 
+    setDetailsData(null);
+    setDetailsError(null);
+    setDetailsLoading(false);
+    setHoursExpanded(false);
+  }, [restaurant?.id]);
 
   const handleFetchDetails = async () => {
     if (!restaurant || !restaurant.id) {
@@ -47,9 +58,7 @@ function RestaurantCard({ restaurant, onLike, onDislike, onSuperlike, isSuperlik
     setShowDetails(true); 
 
     try {
-      // Construct the full URL using the base URL
       const fetchUrl = `${API_BASE_URL}/restaurant-details/${restaurant.id}`;
-      
       const response = await fetch(fetchUrl, { cache: 'no-cache' }); 
 
       const contentType = response.headers.get("content-type");
@@ -108,8 +117,8 @@ function RestaurantCard({ restaurant, onLike, onDislike, onSuperlike, isSuperlik
 
   return (
     <Card sx={{ 
-      maxWidth: 345, 
-      margin: '20px auto', 
+      width: '100%',
+      margin: 'auto', 
       display: 'flex', 
       flexDirection: 'column', 
       justifyContent: 'space-between',
@@ -181,17 +190,35 @@ function RestaurantCard({ restaurant, onLike, onDislike, onSuperlike, isSuperlik
 
                 {detailsData.hours && (
                    <Box sx={{my:1}}>
-                    <Typography variant="subtitle1" gutterBottom component="div" sx={{ display: 'flex', alignItems: 'center' }}>
-                      <AccessTimeIcon fontSize="small" sx={{ mr: 0.5 }} /> Hours
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" style={{ whiteSpace: 'pre-wrap' }}>
-                      {detailsData.hours && detailsData.hours.length > 0 && detailsData.hours[0].is_open_now !== undefined && (
-                        <Typography variant="body2" sx={{ color: detailsData.hours[0].is_open_now ? 'green' : 'red', fontWeight: 'bold', mb: 0.5 }}>
-                          {detailsData.hours[0].is_open_now ? 'Open now' : 'Closed now'}
-                        </Typography>
-                      )}
-                      {formatHours(detailsData.hours)}
-                    </Typography>
+                     <Box 
+                       onClick={() => setHoursExpanded(!hoursExpanded)}
+                       sx={{ 
+                         cursor: 'pointer', 
+                         display: 'flex', 
+                         alignItems: 'center', 
+                         justifyContent: 'space-between',
+                         borderBottom: '1px solid #f0f0f0',
+                         pb: 0.5,
+                         mb: 0.5
+                       }}
+                     >
+                       <Typography variant="subtitle1" component="div" sx={{ display: 'flex', alignItems: 'center' }}>
+                         <AccessTimeIcon fontSize="small" sx={{ mr: 0.5 }} /> Hours
+                       </Typography>
+                       {hoursExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                     </Box>
+                     
+                     {detailsData.hours && detailsData.hours.length > 0 && detailsData.hours[0].is_open_now !== undefined && (
+                       <Typography variant="body2" sx={{ color: detailsData.hours[0].is_open_now ? 'green' : 'red', fontWeight: 'bold', mb: 0.5 }}>
+                         {detailsData.hours[0].is_open_now ? 'Open now' : 'Closed now'}
+                       </Typography>
+                     )}
+                     
+                     <Collapse in={hoursExpanded} timeout="auto" unmountOnExit>
+                       <Typography variant="body2" color="text.secondary" style={{ whiteSpace: 'pre-wrap' }}>
+                         {formatHours(detailsData.hours)}
+                       </Typography>
+                     </Collapse>
                    </Box>
                 )}
 

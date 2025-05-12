@@ -58,25 +58,42 @@ export default function MatchPage({
   const handleSuperlikeClick = () => onSuperlike(biz.id);
 
   return (
-    <Box sx={{ minHeight: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', bgcolor: 'background.default', p: 2 }}>
+    <Box sx={{
+      minHeight: '100vh', 
+      width: '100vw', 
+      display: 'flex', 
+      flexDirection: 'column', 
+      alignItems: 'center', 
+      bgcolor: 'background.default', 
+      p: 2,
+      pt: { xs: 2, md: 5 }
+    }}>
       <Typography variant="h4" align="center" sx={{ mb: 2 }}>{player ? `Player: ${player}` : ''}</Typography>
-      <Box sx={{ width: 345, maxWidth: '90vw', mb: 2 }}>
+      <Box sx={{ 
+        width: { xs: '95vw', sm: 450, md: 500 },
+        maxWidth: '100%',
+        mb: 2 
+      }}> 
         <LinearProgress variant="determinate" value={progress} sx={{ height: 10, borderRadius: 5 }} />
       </Box>
 
-      <RestaurantCard 
-        restaurant={biz} 
-        isSuperliked={checkSuperliked}
-        hideButtons={true}
-        isMatched={false}
-      />
+      <Box sx={{ 
+        width: { xs: '95vw', sm: 450, md: 500 },
+        maxWidth: '100%' 
+      }}>
+        <RestaurantCard 
+          restaurant={biz} 
+          hideButtons={true} 
+          isMatched={false} 
+        />
+      </Box>
 
       <Stack direction="row" justifyContent="center" spacing={3} sx={{ mt: 3, mb: 3 }}>
         <IconButton color="error" onClick={handleDislikeClick} size="large" sx={{ border: '2px solid', borderColor: 'error.light', width: 64, height: 64 }}>
           <CloseIcon fontSize="inherit" />
         </IconButton>
         <IconButton 
-          color="primary"
+          color="primary" 
           onClick={handleSuperlikeClick} 
           size="large" 
           sx={{ 
@@ -95,7 +112,7 @@ export default function MatchPage({
         </IconButton>
       </Stack>
 
-      <Box display="flex" justifyContent="center">
+      <Box display="flex" justifyContent="center"> 
         <Button variant="outlined" color="primary" onClick={onFinish} sx={{ minWidth: 180 }}>
           {currentIdx === restaurants.length - 1 ? 'Finish & See Matches' : 'Finish Turn'}
         </Button>
