@@ -22,6 +22,9 @@ function RestaurantCard({ restaurant, onLike, onDislike, onSuperlike, isSuperlik
   const [detailsError, setDetailsError] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
 
+  // Define API base URL, consistent with App.jsx
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
   const handleFetchDetails = async () => {
     if (!restaurant || !restaurant.id) {
       setDetailsError("Restaurant ID is missing.");
@@ -44,8 +47,10 @@ function RestaurantCard({ restaurant, onLike, onDislike, onSuperlike, isSuperlik
     setShowDetails(true); 
 
     try {
-      const fetchUrl = `/restaurant-details/${restaurant.id}`;
-      const response = await fetch(fetchUrl, { cache: 'no-cache' });
+      // Construct the full URL using the base URL
+      const fetchUrl = `${API_BASE_URL}/restaurant-details/${restaurant.id}`;
+      
+      const response = await fetch(fetchUrl, { cache: 'no-cache' }); 
 
       const contentType = response.headers.get("content-type");
       if (!response.ok) {
@@ -77,7 +82,7 @@ function RestaurantCard({ restaurant, onLike, onDislike, onSuperlike, isSuperlik
     } catch (error) {
       setDetailsError(error.message);
     } finally {
-      setDetailsLoading(false);
+      setDetailsLoading(false); 
     }
   };
 
