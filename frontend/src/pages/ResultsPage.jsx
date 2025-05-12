@@ -1,6 +1,9 @@
 import React from 'react';
 import { Box, Button, Typography, Card, CardContent, Container, Stack } from '@mui/material';
 
+import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
+import StarIcon from '@mui/icons-material/Star';
+
 export default function ResultsPage({ matches, onRestart }) {
   return (
     <Container maxWidth="sm" sx={{ mt: 6 }}>
@@ -11,7 +14,7 @@ export default function ResultsPage({ matches, onRestart }) {
             <Typography align="center">No mutual likes found. Try again!</Typography>
           ) : (
             matches.map((biz, idx) => (
-              <Box key={biz.id} sx={{ my: 2, p: 2, border: '1px solid #eee', borderRadius: 2 }}>
+              <Box key={biz.id || idx} sx={{ my: 2, p: 2, border: '1px solid #eee', borderRadius: 2 }}>
                 <Typography variant="h6">{biz.name}</Typography>
                 <Typography color="text.secondary">{biz.location && biz.location.address1}</Typography>
                 <Typography>⭐ {biz.rating} ({biz.review_count} reviews)</Typography>
@@ -27,3 +30,4 @@ export default function ResultsPage({ matches, onRestart }) {
     </Container>
   );
 }
+

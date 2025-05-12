@@ -18,6 +18,9 @@ function App() {
   const [matchingPlayer, setMatchingPlayer] = useState(1); // 1 or 2
 
   // Handle setup form submit
+  // API base URL - use environment variable in production, fallback to localhost for development
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
   const handleSetup = async ({ player1, player2, location, radius }) => {
     setPlayer1(player1);
     setPlayer2(player2);
@@ -25,9 +28,9 @@ function App() {
     setRadius(radius);
     // Geocode location
     try {
-      const geo = await axios.post('http://localhost:8000/geocode', { location });
+      const geo = await axios.post(`${API_BASE_URL}/geocode`, { location });
       // Fetch restaurants
-      const resp = await axios.post('http://localhost:8000/restaurants', {
+      const resp = await axios.post(`${API_BASE_URL}/restaurants`, {
         lat: geo.data.lat,
         lng: geo.data.lng,
         radius: radius * 1000

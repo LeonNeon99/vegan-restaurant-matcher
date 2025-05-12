@@ -13,6 +13,19 @@ OPENCAGE_API_KEY = os.getenv("OPENCAGE_API_KEY")
 
 app = FastAPI()
 
+@app.get("/autocomplete_location")
+async def autocomplete_location(q: str):
+    if not OPENCAGE_API_KEY:
+        raise HTTPException(status_code=500, detail="OpenCage API key not set.")
+    url = "https://api.opencagedata.com/geosearch/v1/json"
+    params = {"q": q, "key": OPENCAGE_API_KEY, "limit": 5}
+    async with httpx.AsyncClient() as client:
+        r = await client.get(url, params=params, timeout=10)
+        r.raise_for_status()
+        results = r.json().get("results", [])
+        suggestions = [res.get("formatted") for res in results if res.get("formatted")]
+        return {"suggestions": suggestions}
+
 @app.get("/debug_env")
 def debug_env():
     return {
@@ -22,7 +35,7 @@ def debug_env():
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # In production, specify your frontend URL here instead of *
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
