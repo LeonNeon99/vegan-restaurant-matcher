@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Button, Typography, Card, CardContent, CardMedia, IconButton, Stack, CircularProgress } from '@mui/material';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import CloseIcon from '@mui/icons-material/Close';
@@ -9,10 +9,18 @@ import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import { LinearProgress, Collapse } from '@mui/material';
 
 export default function MatchPage({ restaurants, isLoading, error, onLike, onDislike, currentIdx, player, onFinish, onRestart }) {
+  // --- Hooks MUST be called at the top level --- 
   const [galleryIdx, setGalleryIdx] = useState(0);
   const [infoOpen, setInfoOpen] = useState(false);
 
-  // --- Loading State --- 
+  // Reset gallery index and info panel when the restaurant changes
+  useEffect(() => {
+      setGalleryIdx(0);
+      setInfoOpen(false);
+  }, [currentIdx]);
+  // --- End Hooks --- 
+
+  // --- Conditional Returns --- 
   if (isLoading) {
     return (
       <Box sx={{ minHeight: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', bgcolor: 'background.default', p: 2 }}>
@@ -43,16 +51,14 @@ export default function MatchPage({ restaurants, isLoading, error, onLike, onDis
       </Box>
     );
   }
+  // --- End Conditional Returns --- 
 
   // --- Restaurants Loaded - Normal Display --- 
-  // Reset gallery index if restaurant changes
-  React.useEffect(() => {
-      setGalleryIdx(0);
-      setInfoOpen(false);
-  }, [currentIdx]);
-
+  
+  // Now it's safe to access restaurants[currentIdx]
   const biz = restaurants[currentIdx];
-  // Guard against biz being undefined if index is somehow out of bounds momentarily
+
+  // Guard against biz being undefined (should be less likely now, but good practice)
   if (!biz) {
     return null; // Or a different loading/error state?
   }
