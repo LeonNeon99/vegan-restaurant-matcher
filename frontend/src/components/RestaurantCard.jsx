@@ -131,8 +131,8 @@ function RestaurantCard({ restaurant, hideButtons, isMatched, wasSuperlikedByOth
       <Box sx={{ position: 'relative' }}>
         <CardMedia
           component="img"
-          height="140"
-          image={restaurant.image_url || 'https://via.placeholder.com/345x140.png?text=No+Image'}
+          height="180"
+          image={restaurant.image_url || 'https://via.placeholder.com/345x180.png?text=No+Image'}
           alt={restaurant.name}
           sx={{ objectFit: 'cover' }}
         />

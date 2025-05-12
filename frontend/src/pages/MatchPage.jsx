@@ -66,23 +66,28 @@ export default function MatchPage({
       display: 'flex', 
       flexDirection: 'column', 
       alignItems: 'center', 
-      bgcolor: 'background.default', 
-      p: 2,
-      pt: { xs: 2, md: 5 }
+      bgcolor: 'grey.100',
+      p: 3,
+      pt: { xs: 3, md: 6 }
     }}>
-      <Typography variant="h4" align="center" sx={{ mb: 2 }}>{player ? `Player: ${player}` : ''}</Typography>
+      <Typography variant="h4" align="center" sx={{ mb: 3 }}>
+        {player ? `Player: ${player}` : ''}
+      </Typography>
+      
       <Box sx={{ 
-        width: { xs: '95vw', sm: 450, md: 500 },
+        width: { xs: '95vw', sm: 450, md: 600 },
         maxWidth: '100%',
-        mb: 2 
+        mb: 3 
       }}> 
         <LinearProgress variant="determinate" value={progress} sx={{ height: 10, borderRadius: 5 }} />
       </Box>
 
       <Box sx={{ 
-        width: { xs: '95vw', sm: 450, md: 500 },
+        width: { xs: '95vw', sm: 450, md: 600 },
         maxWidth: '100%', 
-        position: 'relative'
+        position: 'relative',
+        boxShadow: 6,
+        borderRadius: 3
       }}>
         <RestaurantCard 
           restaurant={biz} 
@@ -92,7 +97,7 @@ export default function MatchPage({
         />
       </Box>
 
-      <Stack direction="row" justifyContent="center" spacing={3} sx={{ mt: 3, mb: 3 }}>
+      <Stack direction="row" justifyContent="center" spacing={4} sx={{ mt: 4, mb: 4 }}>
         <IconButton color="error" onClick={handleDislikeClick} size="large" sx={{ border: '2px solid', borderColor: 'error.light', width: 64, height: 64 }}>
           <CloseIcon fontSize="inherit" />
         </IconButton>
@@ -117,7 +122,7 @@ export default function MatchPage({
       </Stack>
 
       <Box display="flex" justifyContent="center"> 
-        <Button variant="outlined" color="primary" onClick={onFinish} sx={{ minWidth: 180 }}>
+        <Button variant="contained" color="primary" onClick={onFinish} sx={{ minWidth: 200, p: 1.5 }}>
           {currentIdx === restaurants.length - 1 ? 'Finish & See Matches' : 'Finish Turn'}
         </Button>
       </Box>
