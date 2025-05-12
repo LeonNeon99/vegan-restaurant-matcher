@@ -145,6 +145,21 @@ This document outlines planned improvements and features for the Vegan Restauran
 
 ---
 
+## 5a. Enhance Match Page UI/UX
+
+*   **Goal:** Improve the visual presentation of the match page card area and incorporate visual feedback for superlikes made by the other player.
+*   **Problem:** The current `MatchPage.jsx` card display is basic. If Player 1 superlikes a restaurant, Player 2 currently has no visual cue of this when the same card appears.
+*   **Implementation Plan:**
+    *   **`App.jsx`:** 
+        *   Pass data to `MatchPage` to indicate if the current restaurant was superliked by the *other* player (e.g., if current player is P2, pass P1's superlikes).
+    *   **`MatchPage.jsx`:**
+        *   Receive this new prop.
+        *   Adjust the main card area or the `RestaurantCard` component it renders to visually indicate if the *other* player superliked the current restaurant (e.g., a special border, a badge, or an icon on the card itself).
+        *   General UI/styling improvements for the card presentation on `MatchPage`.
+*   **Status:** Complete
+
+---
+
 ## 6. Implement Session Sharing via Invite Link
 
 *   **Goal:** Enable two users on different devices/browsers to participate in the same matching session simultaneously, initiated via a shared link.

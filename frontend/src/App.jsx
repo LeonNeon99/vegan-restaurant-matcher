@@ -155,6 +155,11 @@ function App() {
     return <SetupPage onSetup={handleSetup} />;
   }
   if (stage === 'matching') {
+    // Determine the list of superlikes from the *other* player
+    const otherPlayerSuperlikeIds = matchingPlayer === 1 
+      ? new Set(player2Superlikes.map(r => r.id)) 
+      : new Set(player1Superlikes.map(r => r.id));
+
     return (
       <MatchPage
         restaurants={restaurants}
@@ -163,7 +168,8 @@ function App() {
         onLike={handleLike}
         onDislike={handleDislike}
         onSuperlike={handleSuperlike}
-        isSuperliked={isRestaurantSuperliked}
+        isSuperliked={isRestaurantSuperliked} // Checks if CURRENT player superliked
+        otherPlayerSuperlikeIds={otherPlayerSuperlikeIds} // Pass IDs superliked by OTHER player
         currentIdx={currentIdx}
         player={matchingPlayer === 1 ? player1 : player2}
         onFinish={handleFinish}

@@ -21,8 +21,9 @@ import Collapse from '@mui/material/Collapse';
 import Grid from '@mui/material/Grid';
 import { Map, Marker } from '@vis.gl/react-google-maps';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
+import StarRateIcon from '@mui/icons-material/StarRate';
 
-function RestaurantCard({ restaurant, hideButtons, isMatched }) {
+function RestaurantCard({ restaurant, hideButtons, isMatched, wasSuperlikedByOther }) {
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [detailsData, setDetailsData] = useState(null);
   const [detailsError, setDetailsError] = useState(null);
@@ -127,13 +128,32 @@ function RestaurantCard({ restaurant, hideButtons, isMatched }) {
       justifyContent: 'space-between',
       backgroundColor: isMatched ? '#e6ffed' : 'inherit' 
     }}>
-      <CardMedia
-        component="img"
-        height="140"
-        image={restaurant.image_url || 'https://via.placeholder.com/345x140.png?text=No+Image'}
-        alt={restaurant.name}
-        sx={{ objectFit: 'cover' }}
-      />
+      <Box sx={{ position: 'relative' }}>
+        <CardMedia
+          component="img"
+          height="140"
+          image={restaurant.image_url || 'https://via.placeholder.com/345x140.png?text=No+Image'}
+          alt={restaurant.name}
+          sx={{ objectFit: 'cover' }}
+        />
+        {wasSuperlikedByOther && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 8,
+              right: 8,
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              borderRadius: '50%',
+              padding: '4px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            <StarRateIcon sx={{ color: 'gold', fontSize: 28 }} />
+          </Box>
+        )}
+      </Box>
       <CardContent sx={{ flexGrow: 1 }}>
         <Typography gutterBottom variant="h5" component="div">
           {restaurant.name}

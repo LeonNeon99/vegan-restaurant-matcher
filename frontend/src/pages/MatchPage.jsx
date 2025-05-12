@@ -14,6 +14,7 @@ export default function MatchPage({
   onDislike, 
   onSuperlike,
   isSuperliked,
+  otherPlayerSuperlikeIds,
   currentIdx, 
   player, 
   onFinish, 
@@ -52,6 +53,7 @@ export default function MatchPage({
   const progress = ((currentIdx + 1) / restaurants.length) * 100;
 
   const checkSuperliked = typeof isSuperliked === 'function' ? isSuperliked(biz.id) : false;
+  const wasSuperlikedByOther = otherPlayerSuperlikeIds instanceof Set && otherPlayerSuperlikeIds.has(biz.id);
 
   const handleDislikeClick = () => onDislike(biz.id);
   const handleLikeClick = () => onLike(biz.id);
@@ -79,12 +81,14 @@ export default function MatchPage({
 
       <Box sx={{ 
         width: { xs: '95vw', sm: 450, md: 500 },
-        maxWidth: '100%' 
+        maxWidth: '100%', 
+        position: 'relative'
       }}>
         <RestaurantCard 
           restaurant={biz} 
           hideButtons={true} 
           isMatched={false} 
+          wasSuperlikedByOther={wasSuperlikedByOther}
         />
       </Box>
 
