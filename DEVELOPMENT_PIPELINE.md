@@ -75,24 +75,19 @@ This document outlines planned improvements and features for the Vegan Restauran
 *   **Goal:** Allow users to refine the list of fetched restaurants based on criteria like Yelp rating, price range, and sort order (e.g., by distance, rating).
 *   **Potential Solutions & Implementation:**
     *   **Backend (`/restaurants`):**
-        *   **API Data Check:** Verify that the Yelp API response consistently provides `rating` and `price` (e.g., "$", "$$", "$$$", "$$$$") fields for businesses. Note: Data availability might vary. Distance is usually available or calculable from coordinates.
-        *   **Endpoint Parameters:** Add optional query parameters to the `/restaurants` endpoint:
-            *   `min_rating` (float)
-            *   `price_levels` (comma-separated string, e.g., "1,2" for $ and $$)
-            *   `sort_by` (enum: `distance`, `rating`, `best_match` (default Yelp))
-        *   **Logic:** Implement filtering logic within the endpoint *after* receiving results from Yelp (as Yelp API might not support all these filters directly). Sorting by distance might require calculation if not directly provided relative to the search center. Sorting by rating should be straightforward.
+        *   **API Data Check:** Verified Yelp API supports `price` filtering and `sort_by` (rating, distance, etc.), but not direct `min_rating` filtering.
+        *   **Endpoint Parameters:** Added optional `price`, `sort_by`, `min_rating` to request model.
+        *   **Logic:** Pass `price` and `sort_by` to Yelp API. Filter results by `min_rating` in backend after fetch.
     *   **Frontend:**
-        *   **UI Elements:** Add controls to the setup screen (or potentially a filter panel on the match screen) for selecting:
-            *   Minimum rating (e.g., slider, star input).
-            *   Price levels (e.g., checkboxes, button group).
-            *   Sort order (e.g., dropdown).
-        *   **API Call:** Update the frontend API call to `/restaurants` to include the selected filter and sort parameters based on user input.
-        *   **State Management:** Store filter/sort preferences in the frontend state.
+        *   **UI Elements:** Added `Rating`, `ToggleButtonGroup`, and `Select` components to `SetupPage` for user input.
+        *   **API Call:** Updated frontend (`SetupPage` -> `App.jsx` -> API call) to send filter/sort parameters to backend.
+        *   **State Management:** Added state in `SetupPage` to manage filter/sort selections.
 *   **Action Steps:**
-    1.  Confirm available data fields (rating, price) in the Yelp API response.
-    2.  Design and implement UI elements for filters and sorting.
-    3.  Add corresponding query parameters and filtering/sorting logic to the backend endpoint.
-    4.  Connect frontend UI state to the API call parameters.
+    1.  Confirm available data fields (rating, price) in the Yelp API response. *(Completed)*
+    2.  Design and implement UI elements for filters and sorting. *(Completed)*
+    3.  Add corresponding query parameters and filtering/sorting logic to the backend endpoint. *(Completed)*
+    4.  Connect frontend UI state to the API call parameters. *(Completed)*
+*   **Status:** Complete
 
 ---
 

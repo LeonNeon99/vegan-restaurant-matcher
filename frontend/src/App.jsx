@@ -20,36 +20,40 @@ function App() {
   // API base URL
   const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
-  // Updated handleSetup to accept lat/lng directly
-  const handleSetup = async ({ player1, player2, lat, lng, radius }) => {
+  // Updated handleSetup to accept all parameters
+  const handleSetup = async ({ 
+    player1, player2, lat, lng, radius, 
+    minRating, price, sortBy // Added new params
+  }) => {
     setPlayer1(player1);
     setPlayer2(player2);
-    setRestaurants([]); // Clear previous restaurants
+    setRestaurants([]);
     setPlayer1Likes([]);
     setPlayer2Likes([]);
     setMutualLikes([]);
     setMatchingPlayer(1);
     setCurrentIdx(0);
-    setFetchError(''); // Clear previous errors
-    setLoadingRestaurants(true); // Start loading
-    setStage('matching'); // Navigate to matching page immediately to show loading
+    setFetchError('');
+    setLoadingRestaurants(true);
+    setStage('matching');
 
     try {
-      // Fetch restaurants using the provided lat/lng and radius (already in meters)
+      // Fetch restaurants including filter/sort parameters
       const resp = await axios.post(`${API_BASE_URL}/restaurants`, {
         lat: lat,
         lng: lng,
-        radius: radius // Comes from SetupPage already multiplied by 1000
+        radius: radius, // Already in meters
+        min_rating: minRating, // Pass directly (backend handles null)
+        price: price, // Pass directly
+        sort_by: sortBy // Pass directly
       });
-      setRestaurants(resp.data || []); // Ensure it's an array
+      setRestaurants(resp.data || []);
     } catch (err) {
       console.error("Error fetching restaurants:", err);
       const errorMsg = err.response?.data?.detail || err.message || 'Unknown error fetching restaurants';
-      setFetchError(errorMsg); // Store error message
-      // Optional: Navigate back or show error prominently on MatchPage
-      // For now, MatchPage will show the error if restaurants array is empty and error exists
+      setFetchError(errorMsg);
     } finally {
-      setLoadingRestaurants(false); // Stop loading regardless of success/error
+      setLoadingRestaurants(false);
     }
   };
 

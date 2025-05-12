@@ -5,6 +5,7 @@ from pydantic import BaseModel
 import httpx
 from dotenv import load_dotenv
 import googlemaps
+from typing import Optional
 
 load_dotenv()
 
@@ -61,6 +62,9 @@ class RestaurantsRequest(BaseModel):
     lat: float
     lng: float
     radius: int
+    price: Optional[str] = None  # Optional: Comma-separated string of price levels (1, 2, 3, 4)
+    sort_by: Optional[str] = None # Optional: 'best_match', 'rating', 'review_count', 'distance'
+    min_rating: Optional[float] = None # Optional: Minimum rating to filter by (e.g., 4.0)
 
 class GeocodeResponse(BaseModel):
     lat: float
@@ -91,52 +95,62 @@ async def geocode_location(data: GeocodeRequest):
 async def get_restaurants(data: RestaurantsRequest):
     if not YELP_API_KEY:
         raise HTTPException(status_code=500, detail="Yelp API key not set.")
+    
     url = "https://api.yelp.com/v3/businesses/search"
     headers = {"Authorization": f"Bearer {YELP_API_KEY}"}
-    # Ensure radius is within Yelp's limits (max 40000m)
-    # Although frontend should send 1000-25000, let's cap it just in case.
-    safe_radius = min(data.radius, 40000)
+    
+    safe_radius = min(data.radius, 40000) # Keep radius check
+    
     params = {
         "latitude": data.lat,
         "longitude": data.lng,
-        # "radius": data.radius, # Use safe_radius instead
-        "radius": safe_radius, # Use capped radius
-        "categories": "vegan",
-        "limit": 20, # Consider making this configurable later?
-        "sort_by": "best_match"
+        "radius": safe_radius,
+        "categories": "vegan", # Keep targeting vegan
+        "limit": 50, # Increase limit slightly to get more results for potential filtering
+        # "sort_by": "best_match" # Default, will be overridden if provided
     }
-    
-    # Add logging to see the exact parameters sent to Yelp
+
+    # Add optional parameters if provided by the frontend
+    if data.sort_by and data.sort_by in ['best_match', 'rating', 'review_count', 'distance']:
+        params['sort_by'] = data.sort_by
+    else:
+        params['sort_by'] = 'best_match' # Ensure default if invalid sort_by is passed
+        
+    if data.price:
+        # Basic validation: ensure it's comma-separated numbers 1-4
+        valid_prices = all(p.isdigit() and 1 <= int(p) <= 4 for p in data.price.split(','))
+        if valid_prices:
+            params['price'] = data.price
+
     print(f"Sending request to Yelp with params: {params}") 
     
     async with httpx.AsyncClient() as client:
-        try: # Add try/except around the Yelp call specifically
-            r = await client.get(url, headers=headers, params=params, timeout=10)
-            print("Yelp response status:", r.status_code) # Log status code
-            # print("Yelp response text:", r.text) # Keep this commented unless debugging Yelp response format
-            r.raise_for_status() # Raise HTTPStatusError for 4xx/5xx responses
+        try:
+            r = await client.get(url, headers=headers, params=params, timeout=15) # Increased timeout slightly
+            print("Yelp response status:", r.status_code)
+            r.raise_for_status()
             results = r.json().get("businesses", [])
-            # Optionally, fetch photos for each business (requires extra requests)
-            # Consider moving photo fetching to a separate detail request later if needed
-            # This secondary loop can significantly slow down the initial response
-            # and might hit rate limits.
-            # for biz in results:
-            #     biz_id = biz.get("id")
-            #     if biz_id:
-            #         try:
-            #             photo_resp = await client.get(f"https://api.yelp.com/v3/businesses/{biz_id}", headers=headers, timeout=6)
-            #             if photo_resp.status_code == 200:
-            #                 biz["photos"] = photo_resp.json().get("photos", [])
-            #         except Exception as photo_err:
-            #             print(f"Error fetching photos for {biz_id}: {photo_err}")
-            #             biz["photos"] = [biz.get("image_url")] if biz.get("image_url") else []
-            return results
-        except httpx.HTTPStatusError as exc: # Catch specific Yelp API errors
+
+            # ---- Post-fetch Filtering (for options not supported by Yelp API directly) ----
+            filtered_results = results
+            
+            # Filter by minimum rating if requested
+            if data.min_rating is not None and data.min_rating > 0:
+                print(f"Filtering results by min_rating: {data.min_rating}")
+                filtered_results = [biz for biz in filtered_results if biz.get('rating', 0) >= data.min_rating]
+                print(f"Results after rating filter: {len(filtered_results)}")
+
+            # --- (Commented out photo fetching remains here) --- 
+            # ...
+
+            return filtered_results # Return the potentially filtered list
+
+        except httpx.HTTPStatusError as exc:
             print(f"Yelp API Error: {exc.response.status_code} - {exc.response.text}")
             raise HTTPException(status_code=exc.response.status_code, detail=f"Error from Yelp API: {exc.response.text}")
-        except httpx.RequestError as exc: # Catch network/connection errors
+        except httpx.RequestError as exc:
             print(f"Error connecting to Yelp API: {exc}")
             raise HTTPException(status_code=503, detail=f"Could not connect to Yelp API: {exc}")
-        except Exception as exc: # Catch any other unexpected errors
+        except Exception as exc:
             print(f"Unexpected error processing Yelp response: {exc}")
             raise HTTPException(status_code=500, detail="Internal error processing Yelp response.")
