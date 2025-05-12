@@ -194,6 +194,8 @@ This document outlines planned improvements and features for the Vegan Restauran
     3.  **Design Frontend:** Plan UI changes for creating/joining, real-time updates, turn indication.
     4.  **Implement Frontend:** Integrate WebSocket client, handle server messages, update UI based on real-time state. *This is a substantial feature.*
 
+*   **Status:** Up Next
+
 ---
 
 ## Suggested Prioritization
