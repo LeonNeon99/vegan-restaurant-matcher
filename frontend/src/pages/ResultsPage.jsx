@@ -4,9 +4,9 @@ import { Box, Button, Typography, Card, CardContent, Container, Stack, Paper, Ra
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import StarIcon from '@mui/icons-material/Star';
 
-export default function ResultsPage({ matches, player1Superlikes, player2Superlikes, onRestart }) {
-  const p1SuperlikedIds = new Set(player1Superlikes.map(r => r.id));
-  const p2SuperlikedIds = new Set(player2Superlikes.map(r => r.id));
+export default function ResultsPage({ matches = [], player1Superlikes = [], player2Superlikes = [], onRestart }) {
+  const p1SuperlikedIds = new Set((player1Superlikes || []).map(r => r.id));
+  const p2SuperlikedIds = new Set((player2Superlikes || []).map(r => r.id));
 
   return (
     <Container maxWidth="md" sx={{ mt: { xs: 3, md: 6 }, mb: 4 }}>
