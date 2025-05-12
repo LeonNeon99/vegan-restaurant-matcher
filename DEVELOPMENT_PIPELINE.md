@@ -164,37 +164,459 @@ This document outlines planned improvements and features for the Vegan Restauran
 
 *   **Goal:** Enable two users on different devices/browsers to participate in the same matching session simultaneously, initiated via a shared link.
 *   **Problem:** Currently, the app seems designed for two players on the *same* device. Sharing requires significant architectural changes for state synchronization.
-*   **Potential Solutions & Implementation:**
-    *   **Architecture:** This requires moving from a purely client-side or simple request-response model to a stateful backend with real-time communication.
-    *   **Backend:**
-        *   **Session Management:**
-            *   Generate unique session IDs upon creation.
-            *   Store session state: player names, location/radius, list of potential restaurants, individual swipes (who swiped what), mutual matches. Choose a storage mechanism:
-                *   In-memory dictionary (simple, but state lost on restart).
-                *   Redis (good for caching/temporary state).
-                *   Database (more persistent).
-        *   **Real-time Communication:** Use WebSockets (e.g., FastAPI's `WebSocket` support) for bi-directional communication between clients and the server within a session. Alternatively, use Server-Sent Events (SSE) for server-to-client updates or client polling (less efficient).
-        *   **New Endpoints:**
-            *   `/sessions/create`: Creates a new session, stores initial data, returns session ID (part of invite link).
-            *   `/sessions/{session_id}/join`: Allows a second player to join.
-            *   `/sessions/{session_id}/state`: Endpoint to get the current state (possibly handled via WebSocket messages).
-            *   WebSocket endpoint (`/ws/{session_id}`): Handles actions like swipes, sends updates to connected clients (e.g., "Player 1 swiped like", "New match found", "It's Player 2's turn").
-        *   **Turn Management:** Implement logic to handle whose turn it is to swipe.
-    *   **Frontend:**
-        *   **UI Flow:**
-            *   Modify startup: "Start New Session" (generates/displays invite link) vs. "Join Session" (prompts for link/ID).
-            *   Connect to the WebSocket endpoint upon joining/creating a session.
-            *   Send actions (swipes) via WebSocket.
-            *   Listen for messages from the server (state updates, turn changes, new matches) and update the UI accordingly.
-            *   Store `session_id` in state/context.
-            *   Disable/enable swipe actions based on whose turn it is.
-*   **Action Steps:**
-    1.  **Design Backend:** Plan session state structure, choose storage, design API/WebSocket communication flow.
-    2.  **Implement Backend:** Build session management, state storage, WebSocket handlers, and turn logic.
-    3.  **Design Frontend:** Plan UI changes for creating/joining, real-time updates, turn indication.
-    4.  **Implement Frontend:** Integrate WebSocket client, handle server messages, update UI based on real-time state. *This is a substantial feature.*
+*   **Detailed Implementation Plan:**
+    *   **Backend Architecture:**
+        *   **Session State:** Design a comprehensive session model to store all necessary data:
+            ```python
+            # Session model structure
+            session = {
+                "id": "unique_session_id",                # Random UUID for the session
+                "created_at": "2025-05-12T21:16:07Z",     # ISO timestamp
+                "setup": {
+                    "location": "Miami, FL",              # The search location
+                    "lat": 25.7617,                       # Latitude
+                    "lng": -80.1918,                      # Longitude
+                    "radius": 5000,                       # Search radius in meters
+                    "price": "1,2,3,4",                   # Price filter
+                    "min_rating": 4.0,                    # Rating filter
+                    "sort_by": "best_match"               # Sort criteria
+                },
+                "players": {
+                    "player1": {
+                        "id": "p1_unique_id",             # Random UUID for the player
+                        "name": "Alice",                  # Player name
+                        "connected": True,                # WebSocket connection status
+                        "ready": True,                    # Player ready to start swiping
+                        "swipes": {                       # Player's swipe decisions
+                            "biz_id_1": "like",
+                            "biz_id_2": "dislike",
+                            "biz_id_3": "superlike"
+                        },
+                        "current_index": 5                # Current restaurant index for this player
+                    },
+                    "player2": {                          # May be null initially
+                        "id": "p2_unique_id",
+                        "name": "Bob",
+                        # Same structure as player1
+                    }
+                },
+                "restaurants": [                          # Array of restaurant objects from Yelp
+                    { "id": "biz_id_1", ... },
+                    { "id": "biz_id_2", ... },
+                    # More restaurants...
+                ],
+                "matches": [                              # Restaurant IDs both players liked
+                    "biz_id_1",
+                    # More match IDs...
+                ],
+                "current_turn": "player1",                # Whose turn it is to swipe
+                "status": "active"                        # Session status (active, completed, expired)
+            }
+            ```
 
-*   **Status:** Up Next
+        *   **Storage Implementation:**
+            *   Use an in-memory dictionary initially for development simplicity:
+                ```python
+                # Global dictionary to store all active sessions
+                sessions = {}
+                
+                # Function to find a session by ID
+                def get_session(session_id):
+                    return sessions.get(session_id)
+                
+                # Function to create a new session
+                def create_session(player_name, location, lat, lng, radius, **filters):
+                    session_id = str(uuid.uuid4())
+                    # Initialize session structure
+                    sessions[session_id] = {
+                        "id": session_id,
+                        "created_at": datetime.now().isoformat(),
+                        # ...rest of structure as above
+                    }
+                    return session_id
+                ```
+            *   Add session cleanup to prevent memory leaks (e.g., delete sessions inactive for 24+ hours)
+            *   Consider moving to Redis or a database like MongoDB later for persistence and scale
+
+        *   **WebSocket Communication:**
+            *   Use FastAPI's built-in WebSocket support:
+                ```python
+                @app.websocket("/ws/{session_id}/{player_id}")
+                async def websocket_endpoint(websocket: WebSocket, session_id: str, player_id: str):
+                    await websocket.accept()
+                    
+                    # Add connection to session
+                    session = get_session(session_id)
+                    if not session:
+                        await websocket.send_json({"type": "error", "message": "Session not found"})
+                        await websocket.close()
+                        return
+                        
+                    # Authenticate player and update connection status
+                    # ...
+                    
+                    try:
+                        # Listen for messages
+                        while True:
+                            data = await websocket.receive_json()
+                            
+                            # Handle different message types
+                            if data.get("action") == "swipe":
+                                # Process swipe action
+                                await process_swipe(session_id, player_id, data.get("restaurant_id"), data.get("decision"))
+                                
+                                # Notify players of updated state
+                                await broadcast_state_update(session_id)
+                                
+                            elif data.get("action") == "finish_turn":
+                                # Handle turn change
+                                # ...
+                    except WebSocketDisconnect:
+                        # Handle disconnection
+                        if session:
+                            # Mark player as disconnected
+                            # ...
+                ```
+
+            *   Define message protocols for client-server communication:
+                * **Client → Server**:
+                    * `{"action": "swipe", "restaurant_id": "...", "decision": "like|dislike|superlike"}`
+                    * `{"action": "finish_turn"}`
+                    * `{"action": "restart"}`
+                * **Server → Client**:
+                    * `{"type": "state_update", "data": {...}}` - Full or partial session state
+                    * `{"type": "player_joined", "player_id": "...", "player_name": "..."}`
+                    * `{"type": "turn_change", "current_turn": "player1|player2"}`
+                    * `{"type": "match_found", "restaurant_id": "..."}`
+                    * `{"type": "error", "message": "..."}`
+
+        *   **HTTP Endpoints:**
+            *   **`POST /sessions/create`** - Create a new session with Player 1's info:
+                ```python
+                @app.post("/sessions/create")
+                async def create_session_endpoint(request: CreateSessionRequest):
+                    # Request model contains player name, location details, filters
+                    session_id = create_session(request.player_name, request.location, request.lat, request.lng, request.radius, ...)
+                    
+                    # Fetch restaurants async (don't wait) to populate the session
+                    background_tasks.add_task(fetch_restaurants_for_session, session_id)
+                    
+                    # Return session info with URL to share
+                    return {
+                        "session_id": session_id,
+                        "player_id": sessions[session_id]["players"]["player1"]["id"],
+                        "invite_url": f"{FRONTEND_URL}/join?session={session_id}"
+                    }
+                ```
+            
+            *   **`POST /sessions/{session_id}/join`** - Second player joins the session:
+                ```python
+                @app.post("/sessions/{session_id}/join")
+                async def join_session_endpoint(session_id: str, request: JoinSessionRequest):
+                    session = get_session(session_id)
+                    if not session:
+                        raise HTTPException(status_code=404, detail="Session not found")
+                        
+                    if session["players"].get("player2"):
+                        raise HTTPException(status_code=400, detail="Session already has two players")
+                        
+                    # Add player2 to session
+                    player_id = str(uuid.uuid4())
+                    session["players"]["player2"] = {
+                        "id": player_id,
+                        "name": request.player_name,
+                        "connected": False,
+                        "ready": False,
+                        "swipes": {},
+                        "current_index": 0
+                    }
+                    
+                    return {
+                        "session_id": session_id,
+                        "player_id": player_id
+                    }
+                ```
+                
+            *   **`GET /sessions/{session_id}/state`** - Get the current session state:
+                ```python
+                @app.get("/sessions/{session_id}/state")
+                async def get_session_state(session_id: str, player_id: str):
+                    session = get_session(session_id)
+                    if not session:
+                        raise HTTPException(status_code=404, detail="Session not found")
+                        
+                    # Validate player belongs to session
+                    # ...
+                    
+                    # Return sanitized session state (don't reveal other player's specific swipes)
+                    return {
+                        "id": session["id"],
+                        "setup": session["setup"],
+                        "players": {
+                            "player1": {
+                                "name": session["players"]["player1"]["name"],
+                                "connected": session["players"]["player1"]["connected"],
+                                "ready": session["players"]["player1"]["ready"],
+                                "swipe_count": len(session["players"]["player1"]["swipes"])
+                            },
+                            "player2": { # Similar structure, if player2 exists }
+                        },
+                        "restaurant_count": len(session["restaurants"]),
+                        "current_turn": session["current_turn"],
+                        "status": session["status"],
+                        "matches": session["matches"] if all players finished else [] # Only show matches if both done
+                    }
+                ```
+
+        *   **Notification System:**
+            *   Implement a function to broadcast updates to connected clients:
+                ```python
+                # Store active WebSocket connections
+                active_connections = {}  # Map of (session_id, player_id) to WebSocket
+                
+                async def broadcast_state_update(session_id):
+                    session = get_session(session_id)
+                    if not session:
+                        return
+                        
+                    # For each connected player in this session
+                    for player_key in ["player1", "player2"]:
+                        if player_key not in session["players"]:
+                            continue
+                            
+                        player = session["players"][player_key]
+                        conn_key = (session_id, player["id"])
+                        
+                        if conn_key in active_connections:
+                            websocket = active_connections[conn_key]
+                            try:
+                                # Send customized state update (sanitized for this player)
+                                await websocket.send_json({
+                                    "type": "state_update",
+                                    "data": get_player_view(session, player_key)
+                                })
+                            except Exception:
+                                # Handle disconnection
+                                pass
+                ```
+
+    *   **Frontend Implementation:**
+        *   **Routing & New Pages:**
+            *   Add routes for session creation and joining:
+                ```jsx
+                <Route path="/create-session" element={<CreateSessionPage />} />
+                <Route path="/join" element={<JoinSessionPage />} />
+                ```
+            
+            *   Update the existing landing page to offer both options:
+                ```jsx
+                <Button onClick={() => navigate('/create-session')}>
+                  Start New Session
+                </Button>
+                <Button onClick={() => navigate('/join')}>
+                  Join Existing Session
+                </Button>
+                ```
+                
+        *   **WebSocket Client:**
+            *   Create a WebSocket connection handler:
+                ```jsx
+                function useSessionWebSocket(sessionId, playerId) {
+                  const [connection, setConnection] = useState(null);
+                  const [isConnected, setIsConnected] = useState(false);
+                  const [lastMessage, setLastMessage] = useState(null);
+                  
+                  useEffect(() => {
+                    if (!sessionId || !playerId) return;
+                    
+                    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+                    const wsURL = API_BASE_URL.replace('http', 'ws') + `/ws/${sessionId}/${playerId}`;
+                    const ws = new WebSocket(wsURL);
+                    
+                    ws.onopen = () => {
+                      setIsConnected(true);
+                      setConnection(ws);
+                    };
+                    
+                    ws.onmessage = (event) => {
+                      const message = JSON.parse(event.data);
+                      setLastMessage(message);
+                      
+                      // Handle different message types
+                      switch (message.type) {
+                        case 'state_update':
+                          // Update app state with new session data
+                          break;
+                        case 'player_joined':
+                          // Handle new player notification
+                          break;
+                        // etc.
+                      }
+                    };
+                    
+                    ws.onclose = () => {
+                      setIsConnected(false);
+                    };
+                    
+                    return () => {
+                      ws.close();
+                    };
+                  }, [sessionId, playerId]);
+                  
+                  const sendMessage = useCallback((data) => {
+                    if (connection && isConnected) {
+                      connection.send(JSON.stringify(data));
+                    }
+                  }, [connection, isConnected]);
+                  
+                  return { isConnected, lastMessage, sendMessage };
+                }
+                ```
+                
+        *   **Session Context:**
+            *   Create a React context to manage session state:
+                ```jsx
+                const SessionContext = createContext(null);
+                
+                function SessionProvider({ children }) {
+                  const [sessionId, setSessionId] = useState(null);
+                  const [playerId, setPlayerId] = useState(null);
+                  const [playerName, setPlayerName] = useState('');
+                  const [playerType, setPlayerType] = useState(null); // 'player1' or 'player2'
+                  const [sessionState, setSessionState] = useState(null);
+                  const [currentRestaurant, setCurrentRestaurant] = useState(null);
+                  
+                  // Setup WebSocket connection using the custom hook
+                  const { isConnected, lastMessage, sendMessage } = useSessionWebSocket(sessionId, playerId);
+                  
+                  // Effect to handle incoming WebSocket messages
+                  useEffect(() => {
+                    if (!lastMessage) return;
+                    
+                    // Update state based on message type
+                    if (lastMessage.type === 'state_update') {
+                      setSessionState(lastMessage.data);
+                      // Updated current restaurant if needed
+                      // etc.
+                    }
+                  }, [lastMessage]);
+                  
+                  // Functions to interact with the session
+                  const createSession = async (playerName, location, lat, lng, radius, filters) => {
+                    // Call API to create session
+                    // Set sessionId, playerId, and playerType
+                  };
+                  
+                  const joinSession = async (sessionId, playerName) => {
+                    // Call API to join session
+                    // Set sessionId, playerId, and playerType
+                  };
+                  
+                  const swipe = (restaurantId, decision) => {
+                    sendMessage({
+                      action: 'swipe',
+                      restaurant_id: restaurantId,
+                      decision: decision
+                    });
+                  };
+                  
+                  const finishTurn = () => {
+                    sendMessage({ action: 'finish_turn' });
+                  };
+                  
+                  return (
+                    <SessionContext.Provider value={{
+                      sessionId,
+                      playerId,
+                      playerName,
+                      playerType,
+                      sessionState,
+                      currentRestaurant,
+                      isConnected,
+                      createSession,
+                      joinSession,
+                      swipe,
+                      finishTurn
+                    }}>
+                      {children}
+                    </SessionContext.Provider>
+                  );
+                }
+                ```
+                
+        *   **UI Changes:**
+            *   Create a **CreateSessionPage** that reuses elements from the existing SetupPage:
+                *   Form for player name, location, radius, and filters
+                *   Button to create session
+                *   Display for the invite link once created
+            
+            *   Create a **JoinSessionPage** with:
+                *   Form for player name
+                *   Display of session details (location, etc.)
+                *   "Join Session" button
+            
+            *   Update **MatchPage** to:
+                *   Show whose turn it is
+                *   Disable controls when it's not the current player's turn
+                *   Show real-time updates about the other player's actions
+                *   Handle reconnection/disconnection scenarios
+            
+            *   Update **ResultsPage** to show real-time match updates
+            
+        *   **Navigation Flow:**
+            *   **Player 1 Flow:**
+                1.  Home page → "Start New Session"
+                2.  Fill in details (name, location, filters) and create session
+                3.  Share the generated invite link with Player 2
+                4.  Wait for Player 2 to join (see indicator)
+                5.  Take turns swiping on restaurants
+                6.  See matches in real-time
+            
+            *   **Player 2 Flow:**
+                1.  Open the invite link → JoinSessionPage
+                2.  Enter name and join
+                3.  Take turns swiping on restaurants
+                4.  See matches in real-time
+            
+*   **Step-by-Step Implementation Approach:**
+    1.  **Backend Foundation:**
+        *   Implement the basic session data structure and in-memory storage
+        *   Create the HTTP endpoints (`/sessions/create`, `/sessions/{id}/join`)
+        *   Set up WebSocket endpoint infrastructure with basic connect/disconnect
+    
+    2.  **Frontend Skeleton:**
+        *   Create new pages and routes
+        *   Implement the SessionContext and provider
+        *   Build basic UI for creating and joining sessions
+    
+    3.  **Core Communication:**
+        *   Implement WebSocket message handlers (backend)
+        *   Connect frontend to WebSockets and handle state updates
+        *   Test basic session creation and joining
+    
+    4.  **Turn-Based Interaction:**
+        *   Implement turn management in the backend
+        *   Update frontend to respect whose turn it is
+        *   Add controls to finish turn and change to the other player
+    
+    5.  **Real-Time Updates:**
+        *   Refine the notifications system
+        *   Add UI indicators for real-time events
+        *   Implement graceful handling of disconnections/reconnections
+    
+    6.  **Polishing:**
+        *   Add loading states and error handling
+        *   Enhance the invite link sharing experience (copy button, etc.)
+        *   Implement session cleanup and expiration logic
+    
+*   **Considerations & Potential Challenges:**
+    *   **Server Resources:** WebSockets maintain persistent connections. For a production environment, ensure the server can handle multiple concurrent sessions.
+    *   **Reconnection Logic:** Develop robust handling for players disconnecting and reconnecting.
+    *   **Session Persistence:** The in-memory approach will lose all sessions if the server restarts. Consider Redis or a database for persistence in production.
+    *   **Scale:** The proposed architecture should handle dozens of concurrent sessions, but scaling to hundreds or thousands would require further optimization.
+    *   **Testing:** Test with various network conditions, including high latency and intermittent connectivity.
+
+*   **Status:** In Progress
 
 ---
 
