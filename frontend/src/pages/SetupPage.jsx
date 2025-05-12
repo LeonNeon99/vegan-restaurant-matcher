@@ -93,7 +93,7 @@ export default function SetupPage({ onSetup }) {
   };
 
   return (
-    <Box sx={{ minHeight: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', bgcolor: 'background.default' }}>
+    <Box sx={{ minHeight: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', bgcolor: 'grey.100' }}>
       <Container maxWidth="sm">
         <Paper elevation={6} sx={{ p: 4, borderRadius: 4 }}>
           <Typography variant="h4" align="center" gutterBottom>Vegan Restaurant Matcher</Typography>
