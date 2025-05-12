@@ -4,33 +4,46 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import httpx
 from dotenv import load_dotenv
+import googlemaps
 
 load_dotenv()
 
 YELP_API_KEY = os.getenv("YELP_API_KEY")
-OPENCAGE_API_KEY = os.getenv("OPENCAGE_API_KEY")
+GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
 
+# Initialize Google Maps client
+if GOOGLE_MAPS_API_KEY:
+    gmaps = googlemaps.Client(key=GOOGLE_MAPS_API_KEY)
+else:
+    gmaps = None
 
 app = FastAPI()
 
 @app.get("/autocomplete_location")
 async def autocomplete_location(q: str):
-    if not OPENCAGE_API_KEY:
-        raise HTTPException(status_code=500, detail="OpenCage API key not set.")
-    url = "https://api.opencagedata.com/geosearch/v1/json"
-    params = {"q": q, "key": OPENCAGE_API_KEY, "limit": 5}
-    async with httpx.AsyncClient() as client:
-        r = await client.get(url, params=params, timeout=10)
-        r.raise_for_status()
-        results = r.json().get("results", [])
-        suggestions = [res.get("formatted") for res in results if res.get("formatted")]
+    if not gmaps:
+        raise HTTPException(status_code=500, detail="Google Maps API key not set or client not initialized.")
+    
+    try:
+        autocomplete_result = gmaps.places_autocomplete(
+            input_text=q, 
+            types='(regions)'
+        )
+        suggestions = [place['description'] for place in autocomplete_result if 'description' in place]
         return {"suggestions": suggestions}
+    except googlemaps.exceptions.ApiError as e:
+        print(f"Google Maps Autocomplete API Error: {e}")
+        raise HTTPException(status_code=503, detail=f"Error communicating with Google Maps Autocomplete API: {e.message}")
+    except Exception as e:
+        print(f"An unexpected error occurred in autocomplete_location: {e}")
+        raise HTTPException(status_code=500, detail="An unexpected error occurred while fetching location suggestions.")
 
 @app.get("/debug_env")
 def debug_env():
     return {
         "YELP_API_KEY": YELP_API_KEY,
-        "OPENCAGE_API_KEY": OPENCAGE_API_KEY
+        "GOOGLE_MAPS_API_KEY": GOOGLE_MAPS_API_KEY,
+        "GMAPS_CLIENT_INITIALIZED": gmaps is not None
     }
 
 app.add_middleware(
@@ -60,18 +73,24 @@ class RestaurantsRequest(BaseModel):
 
 @app.post("/geocode", response_model=GeocodeResponse)
 async def geocode_location(data: GeocodeRequest):
-    if not OPENCAGE_API_KEY:
-        raise HTTPException(status_code=500, detail="OpenCage API key not set.")
-    url = "https://api.opencagedata.com/geocode/v1/json"
-    params = {"q": data.location, "key": OPENCAGE_API_KEY, "limit": 1}
-    async with httpx.AsyncClient() as client:
-        r = await client.get(url, params=params, timeout=10)
-        r.raise_for_status()
-        results = r.json().get("results", [])
-        if not results:
-            raise HTTPException(status_code=404, detail="Location not found.")
-        coords = results[0]["geometry"]
+    if not gmaps:
+        raise HTTPException(status_code=500, detail="Google Maps API key not set or client not initialized.")
+
+    try:
+        geocode_result = gmaps.geocode(address=data.location)
+        if not geocode_result or not geocode_result[0].get('geometry', {}).get('location'):
+            raise HTTPException(status_code=404, detail=f"Location not found or invalid: {data.location}")
+        
+        coords = geocode_result[0]['geometry']['location']
         return {"lat": coords["lat"], "lng": coords["lng"]}
+    except googlemaps.exceptions.ApiError as e:
+        print(f"Google Maps Geocode API Error: {e}")
+        raise HTTPException(status_code=503, detail=f"Error communicating with Google Maps Geocode API: {e.message}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"An unexpected error occurred in geocode_location: {e}")
+        raise HTTPException(status_code=500, detail="An unexpected error occurred while geocoding location.")
 
 @app.post("/restaurants")
 async def get_restaurants(data: RestaurantsRequest):
