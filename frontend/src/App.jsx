@@ -12,6 +12,8 @@ function App() {
   const [currentIdx, setCurrentIdx] = useState(0);
   const [player1Likes, setPlayer1Likes] = useState([]);
   const [player2Likes, setPlayer2Likes] = useState([]);
+  const [player1Superlikes, setPlayer1Superlikes] = useState([]);
+  const [player2Superlikes, setPlayer2Superlikes] = useState([]);
   const [mutualLikes, setMutualLikes] = useState([]);
   const [matchingPlayer, setMatchingPlayer] = useState(1); // 1 or 2
   const [loadingRestaurants, setLoadingRestaurants] = useState(false); // Added loading state
@@ -30,6 +32,8 @@ function App() {
     setRestaurants([]);
     setPlayer1Likes([]);
     setPlayer2Likes([]);
+    setPlayer1Superlikes([]);
+    setPlayer2Superlikes([]);
     setMutualLikes([]);
     setMatchingPlayer(1);
     setCurrentIdx(0);
@@ -57,14 +61,51 @@ function App() {
     }
   };
 
-  // Handle like/dislike for current player
-  const handleLike = (biz) => {
+  // Find restaurant by ID from the main list
+  const findRestaurantById = (id) => restaurants.find(r => r.id === id);
+
+  // Modified to accept restaurant ID
+  const handleLike = (restaurantId) => {
+    const biz = findRestaurantById(restaurantId);
+    if (!biz) return; // Restaurant not found, should not happen
+
     if (matchingPlayer === 1) {
-      setPlayer1Likes([...player1Likes, biz]);
+      setPlayer1Likes(prevLikes => [...prevLikes, biz]);
     } else {
-      setPlayer2Likes([...player2Likes, biz]);
+      setPlayer2Likes(prevLikes => [...prevLikes, biz]);
     }
     nextRestaurant();
+  };
+
+  // Modified to accept restaurant ID (though not strictly used by logic yet)
+  const handleDislike = (restaurantId) => {
+    // const biz = findRestaurantById(restaurantId); // Can be used if needed later
+    nextRestaurant();
+  };
+
+  // New handler for superlike
+  const handleSuperlike = (restaurantId) => {
+    const biz = findRestaurantById(restaurantId);
+    if (!biz) return;
+
+    if (matchingPlayer === 1) {
+      setPlayer1Superlikes(prevSuperlikes => [...prevSuperlikes, biz]);
+      // Also counts as a like for matching purposes for now
+      setPlayer1Likes(prevLikes => [...prevLikes, biz]); 
+    } else {
+      setPlayer2Superlikes(prevSuperlikes => [...prevSuperlikes, biz]);
+      // Also counts as a like for matching purposes for now
+      setPlayer2Likes(prevLikes => [...prevLikes, biz]); 
+    }
+    nextRestaurant(); // Moves to next restaurant
+  };
+
+  // Function to check if a restaurant is superliked by the current player
+  const isRestaurantSuperliked = (restaurantId) => {
+    if (matchingPlayer === 1) {
+      return player1Superlikes.some(r => r.id === restaurantId);
+    }
+    return player2Superlikes.some(r => r.id === restaurantId);
   };
 
   const handleFinish = () => {
@@ -80,9 +121,6 @@ function App() {
     }
   };
 
-  const handleDislike = () => {
-    nextRestaurant();
-  };
   const nextRestaurant = () => {
     if (currentIdx < restaurants.length - 1) {
       setCurrentIdx(currentIdx + 1);
@@ -107,6 +145,8 @@ function App() {
     setCurrentIdx(0);
     setPlayer1Likes([]);
     setPlayer2Likes([]);
+    setPlayer1Superlikes([]);
+    setPlayer2Superlikes([]);
     setMutualLikes([]);
     setMatchingPlayer(1);
   };
@@ -122,6 +162,8 @@ function App() {
         error={fetchError}
         onLike={handleLike}
         onDislike={handleDislike}
+        onSuperlike={handleSuperlike}
+        isSuperliked={isRestaurantSuperliked}
         currentIdx={currentIdx}
         player={matchingPlayer === 1 ? player1 : player2}
         onFinish={handleFinish}
