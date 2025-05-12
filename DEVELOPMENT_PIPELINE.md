@@ -104,16 +104,20 @@ This document outlines planned improvements and features for the Vegan Restauran
             *   Calls Yelp's `/v3/businesses/{id}` and `/v3/businesses/{id}/reviews`.
             *   Combines relevant data (e.g., `photos`, `hours`, `reviews` array) into a single response.
             *   Handles potential errors from Yelp API calls.
-    *   **Frontend (`MatchPage.jsx`):**
-        *   **Trigger:** Call the new `/restaurant-details/{business_id}` endpoint when the user clicks the Info icon (`InfoIcon`).
-        *   **State:** Manage loading/error state for the detail fetch. Store fetched details (e.g., in an object keyed by business ID or within the main `restaurants` array if modifying it is preferred).
-        *   **UI Design:** Display fetched details (hours, review excerpts) within the existing `Collapse` section. Update the image gallery to use the full `photos` array from the details response. Show a loading indicator within the `Collapse` section while details are fetching.
+    *   **Frontend (`MatchPage.jsx` -> `RestaurantCard.jsx`):**
+        *   Refactored `MatchPage` to use `RestaurantCard`.
+        *   Added Info icon button to `RestaurantCard`.
+        *   Trigger: Calls `/restaurant-details/{business_id}` when Info icon is clicked.
+        *   State: Manages loading/error/data state within `RestaurantCard`.
+        *   UI Design: Displays fetched details (photos, collapsible hours, reviews) within the card. Handles stale data when restaurant changes.
 *   **Action Steps:**
-    1.  Research Yelp API capabilities for detailed data (hours, reviews, menus). *(Completed)*
-    2.  Decide on a data fetching strategy (upfront vs. on-demand). *(Decision: On-demand via new backend endpoint)*
-    3.  Implement backend endpoint `GET /restaurant-details/{business_id}`.
-    4.  Implement frontend logic in `MatchPage.jsx` to call the endpoint on Info click and display fetched details.
-*   **Status:** Pending Implementation
+    1.  Research Yelp API capabilities. *(Completed)*
+    2.  Decide on data fetching strategy. *(Completed - On-demand)*
+    3.  Implement backend endpoint `/restaurant-details/{business_id}`. *(Completed)*
+    4.  Implement frontend logic in `RestaurantCard.jsx` to call endpoint and display details. *(Completed)*
+    5.  Refactor `MatchPage.jsx` to use `RestaurantCard`. *(Completed)*
+    6.  Fix stale data bug and improve hours UI. *(Completed)*
+*   **Status:** Complete
 
 ---
 

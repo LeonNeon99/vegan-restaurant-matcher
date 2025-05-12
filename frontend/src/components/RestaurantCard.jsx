@@ -18,6 +18,10 @@ import ReviewsIcon from '@mui/icons-material/Reviews';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import Collapse from '@mui/material/Collapse';
+import Grid from '@mui/material/Grid';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
+import 'leaflet/dist/leaflet.css';
 
 function RestaurantCard({ restaurant, hideButtons, isMatched }) {
   const [detailsLoading, setDetailsLoading] = useState(false);
@@ -215,9 +219,39 @@ function RestaurantCard({ restaurant, hideButtons, isMatched }) {
                      )}
                      
                      <Collapse in={hoursExpanded} timeout="auto" unmountOnExit>
-                       <Typography variant="body2" color="text.secondary" style={{ whiteSpace: 'pre-wrap' }}>
-                         {formatHours(detailsData.hours)}
-                       </Typography>
+                       {(() => {
+                         const hoursString = formatHours(detailsData.hours);
+                         if (hoursString === 'Hours not available.' || hoursString === 'Could not parse opening hours.') {
+                            return <Typography variant="body2" color="text.secondary">{hoursString}</Typography>;
+                         }
+                         const hoursLines = hoursString.split('\n');
+                         const midPoint = Math.ceil(hoursLines.length / 2);
+                         const firstColLines = hoursLines.slice(0, midPoint);
+                         const secondColLines = hoursLines.slice(midPoint);
+
+                         const renderHourLine = (line, index) => {
+                           const parts = line.split(': ');
+                           const day = parts[0] ? parts[0] + ':' : '';
+                           const time = parts[1] || '';
+                           return (
+                             <Box key={index} sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', mb: 0.2 }}>
+                               <Typography variant="body2" color="text.secondary" sx={{ mr: 1 }}>{day}</Typography>
+                               <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'right' }}>{time}</Typography>
+                             </Box>
+                           );
+                         };
+
+                         return (
+                           <Grid container spacing={2}>
+                             <Grid item xs={6}>
+                               {firstColLines.map(renderHourLine)}
+                             </Grid>
+                             <Grid item xs={6}>
+                               {secondColLines.map(renderHourLine)}
+                             </Grid>
+                           </Grid>
+                         );
+                       })()} 
                      </Collapse>
                    </Box>
                 )}
@@ -235,6 +269,35 @@ function RestaurantCard({ restaurant, hideButtons, isMatched }) {
                     ))}
                   </Box>
                 )}
+
+                {restaurant?.coordinates?.latitude && restaurant?.coordinates?.longitude ? (
+                  <Box sx={{my: 2}}>
+                     <Typography variant="subtitle1" gutterBottom component="div" sx={{ display: 'flex', alignItems: 'center' }}>
+                       <LocationOnIcon fontSize="small" sx={{ mr: 0.5 }} /> Location Map
+                     </Typography>
+                     <Box sx={{ height: '200px', width: '100%' }}>
+                       <MapContainer 
+                         center={[restaurant.coordinates.latitude, restaurant.coordinates.longitude]}
+                         zoom={14}
+                         scrollWheelZoom={false}
+                         style={{ height: '100%', width: '100%' }}
+                       >
+                         <TileLayer
+                           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                         />
+                         <Marker position={[restaurant.coordinates.latitude, restaurant.coordinates.longitude]}>
+                           <Popup>
+                             {restaurant.name} <br /> {restaurant.location?.display_address?.join(', ')}
+                           </Popup>
+                         </Marker>
+                       </MapContainer>
+                     </Box>
+                  </Box>
+                ) : (
+                   <Typography variant="body2" color="text.secondary" sx={{my:1}}>Map location not available.</Typography>
+                )}
+
                 {detailsData.url && (
                     <Button size="small" href={detailsData.url} target="_blank" rel="noopener noreferrer">
                         View on Yelp
