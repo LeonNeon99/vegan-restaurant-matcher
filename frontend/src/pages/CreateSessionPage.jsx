@@ -41,7 +41,6 @@ export default function CreateSessionPage() {
 
   const handleLocationChange = async (event, newValue, reason) => {
     setLocation(newValue || '');
-    setLocationDetails(null); // Reset lat/lng if location text changes
     if (reason === 'input' && newValue && newValue.length > 2) {
       setAutocompleteLoading(true);
       setFormError('');
@@ -52,20 +51,6 @@ export default function CreateSessionPage() {
         console.error("Autocomplete Error:", err);
         setFormError(err.response?.data?.detail || 'Error fetching locations');
         setAutocompleteOptions([]);
-      } finally {
-        setAutocompleteLoading(false);
-      }
-    } else if (reason === 'select-option' && newValue) {
-      // Do geocoding when an option is selected
-      setAutocompleteLoading(true);
-      try {
-        const geocodeResponse = await axios.post(`${API_BASE_URL}/geocode`, { location: newValue });
-        setLocationDetails(geocodeResponse.data); // Store lat, lng, full_address
-        setLocation(geocodeResponse.data.full_address || newValue); // Update input with formatted address
-      } catch (err) {
-        console.error("Geocoding Error:", err);
-        setFormError(err.response?.data?.detail || 'Error geocoding location');
-        setLocationDetails(null);
       } finally {
         setAutocompleteLoading(false);
       }
@@ -80,21 +65,26 @@ export default function CreateSessionPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!hostName || !location || !locationDetails) {
-      setFormError('Host name and a geocoded location are required.'); // Use setFormError
+    if (!hostName || !location) {
+      setFormError('Host name and location are required.');
       return;
     }
-    setFormError(''); // Use setFormError
-    setInviteUrlLocal(''); // Clear previous invite URL
-    setCreatedSessionId(null); // Clear previous session ID
-    setCreatedPlayerId(null); // Clear previous player ID
+    setFormError('');
+    setInviteUrlLocal('');
+    setCreatedSessionId(null);
+    setCreatedPlayerId(null);
 
     try {
+      // First, geocode the location
+      const geocodeResponse = await axios.post(`${API_BASE_URL}/geocode`, { location: location });
+      const { lat, lng, full_address } = geocodeResponse.data;
+      setLocationDetails(geocodeResponse.data);
+      
       const payload = {
         host_name: hostName,
-        location_description: locationDetails.full_address || location,
-        lat: locationDetails.lat,
-        lng: locationDetails.lng,
+        location_description: full_address || location,
+        lat: lat,
+        lng: lng,
         radius: radius * 1000, // convert km to meters
         price: priceLevels.join(','),
         min_rating: minRating > 0 ? minRating : null,
@@ -117,7 +107,7 @@ export default function CreateSessionPage() {
       console.error("Create Session Error (from page submit):", err);
       // contextError should be set by createNewSession if it throws.
       // setFormError can be used for additional page-specific error display if needed.
-      setFormError(err.message || contextError || 'Failed to create session.'); // Use setFormError
+      setFormError(err.message || contextError || 'Failed to create session.');
     } 
   };
 
@@ -185,8 +175,8 @@ export default function CreateSessionPage() {
               loading={autocompleteLoading}
               onInputChange={handleLocationChange}
               inputValue={location}
-              disabled={contextIsLoading || autocompleteLoading}
-              getOptionLabel={(option) => typeof option === 'string' ? option : option.description}
+              disabled={contextIsLoading}
+              getOptionLabel={(option) => option}
               filterOptions={(x) => x}
               renderInput={(params) => (
                 <TextField 
