@@ -14,7 +14,8 @@ export default function JoinSessionPage() {
 
   useEffect(() => { // Added useEffect to clear session data
     clearSessionData();
-  }, [clearSessionData]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array
 
   const [playerName, setPlayerName] = useState('');
   const [sessionIdInput, setSessionIdInput] = useState(sessionIdFromQuery || ''); // Renamed to avoid clash with context sessionId

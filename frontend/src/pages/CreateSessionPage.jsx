@@ -13,7 +13,8 @@ export default function CreateSessionPage() {
 
   useEffect(() => { // Added useEffect to clear session data
     clearSessionData();
-  }, [clearSessionData]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array
 
   const [hostName, setHostName] = useState('');
   const [location, setLocation] = useState('');
