@@ -10,6 +10,7 @@ from fastapi import FastAPI, HTTPException, Depends, WebSocket, WebSocketDisconn
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
 import logging
 
 load_dotenv()
@@ -199,12 +200,10 @@ async def broadcast_state_update(session_id: str):
         return
 
     print(f"Broadcasting state update for session {session_id}")
-    # Create a serializable copy of the session to send
-    # This is important because the Player model is Pydantic, but we stored dicts
-    session_data_to_send = session.copy() # Shallow copy
-    # Ensure players are dicts if they were stored as Pydantic models
-    # For now, assuming `sessions` stores pure dicts compatible with JSON
-
+    
+    # Use jsonable_encoder to properly handle datetime and other complex types
+    session_data_to_send = jsonable_encoder(session)
+    
     for player_id_key in list(session.get("players", {}).keys()): # Iterate over a copy of keys
         ws_key = (session_id, player_id_key)
         if ws_key in active_connections:
