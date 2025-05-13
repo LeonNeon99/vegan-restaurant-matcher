@@ -78,6 +78,7 @@ class Session(BaseModel):
     consensus_threshold: float = Field(default=0.5, ge=0.1, le=1.0) # e.g. 0.5 for 50%
     mode: str = "freeform" # "turn-based" or "freeform"
     status: str = "waiting_for_players" # "waiting_for_players", "active", "completed", "expired"
+    host_id: str = ""
 
 class CreateSessionRequest(BaseModel):
     host_name: str
@@ -160,6 +161,8 @@ def create_session(request: CreateSessionRequest) -> tuple[str, str]:
     session_id = str(uuid.uuid4())
     host_player_id = str(uuid.uuid4())
 
+    print(f"Creating new session {session_id} with host {request.host_name} (ID: {host_player_id})")
+
     host_player = Player(
         id=host_player_id,
         name=request.host_name,
@@ -186,11 +189,21 @@ def create_session(request: CreateSessionRequest) -> tuple[str, str]:
         max_players=request.max_players,
         consensus_threshold=request.consensus_threshold,
         mode=request.mode,
-        status="waiting_for_players"
+        status="waiting_for_players",
+        host_id=host_player_id  # Explicitly set host_id here
     )
-    # Convert Pydantic models to dicts for storage if not done automatically by assignment
-    # sessions[session_id] = new_session_data.model_dump(by_alias=True) -> Pydantic v2
-    sessions[session_id] = new_session_data.dict(by_alias=True) # Pydantic v1
+    
+    # Convert Pydantic models to dicts for storage
+    session_dict = new_session_data.dict(by_alias=True)  # Pydantic v1
+    
+    # Ensure host_id is set in the session
+    session_dict["host_id"] = host_player_id
+    
+    # Debug log the session data
+    print(f"New session data: host_id={session_dict.get('host_id')}")
+    print(f"Host player data: {session_dict.get('players', {}).get(host_player_id, {})}")
+    
+    sessions[session_id] = session_dict
     return session_id, host_player_id
 
 # --- Placeholder for Broadcast Logic ---
@@ -396,20 +409,27 @@ async def join_existing_session(session_id: str, request: JoinSessionRequest):
 
 @app.websocket("/ws/{session_id}/{player_id}")
 async def websocket_endpoint(websocket: WebSocket, session_id: str, player_id: str):
+    print(f"WebSocket connection attempt: session_id={session_id}, player_id={player_id}")
+    
     await websocket.accept()
+    print(f"WebSocket connection accepted for session_id={session_id}, player_id={player_id}")
     
     session = get_session(session_id)
     if not session:
+        print(f"ERROR: Session {session_id} not found for WebSocket connection")
         await websocket.send_json({"type": "error", "message": "Session not found"})
         await websocket.close()
         return
 
     current_player_data = session.get("players", {}).get(player_id)
     if not current_player_data:
+        print(f"ERROR: Player {player_id} not found in session {session_id}")
         await websocket.send_json({"type": "error", "message": "Player not found in session"})
         await websocket.close()
         return
 
+    print(f"WebSocket connection validated: Player '{current_player_data.get('name')}' ({player_id}) in session {session_id}")
+    
     current_player_data["connected"] = True
     active_connections[(session_id, player_id)] = websocket
     player_name = current_player_data.get("name", "Unknown")
@@ -471,7 +491,15 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, player_id: s
                 
             elif action == "start_session":
                 # Check if this player is the host
-                if current_player_data.get("is_host", False) and session.get("host_id") == player_id:
+                is_host = current_player_data.get("is_host", False)
+                is_marked_as_host_id = session.get("host_id") == player_id
+                
+                print(f"Start session requested by {player_name} (ID: {player_id})")
+                print(f"Player is_host flag: {is_host}")
+                print(f"Session host_id: {session.get('host_id')}")
+                print(f"Match: {is_marked_as_host_id}")
+                
+                if is_host or is_marked_as_host_id:
                     # Check if all players are ready
                     all_players_ready = all(player.get("ready", False) for player in session.get("players", {}).values())
                     if all_players_ready:
