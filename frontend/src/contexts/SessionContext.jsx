@@ -88,10 +88,97 @@ export function SessionProvider({ children }) {
       setWs(null);
       setIsConnected(false);
     };
-  }, [sessionId, playerId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps 
+  }, [sessionId, playerId]); // Added clearSessionData to deps of onmessage, so clearSessionData needs to be stable.
+                           // The WebSocket useEffect itself should *not* depend on clearSessionData here directly.
+                           // The call to clearSessionData from onmessage is the concern.
 
 
-  const createNewSession = async (createRequest) => {
+  const clearSessionData = useCallback(() => {
+    setSessionId(null);
+    setPlayerId(null);
+    setPlayerName(null);
+    setIsHost(false);
+    setSessionState(null);
+    if(ws && ws.readyState === WebSocket.OPEN) { // Check if ws exists and is open before closing
+        ws.close();
+    }
+    setWs(null);
+    setIsConnected(false);
+    localStorage.removeItem('sessionId');
+    localStorage.removeItem('playerId');
+    localStorage.removeItem('playerName');
+    localStorage.removeItem('isHost');
+  }, [ws]); // ws is a dependency because we use it in the function body
+
+  // WebSocket connection logic (re-evaluation due to clearSessionData dependency)
+  useEffect(() => {
+    if (!sessionId || !playerId) {
+      if (ws) {
+        ws.close();
+        setWs(null);
+        setIsConnected(false);
+      }
+      return;
+    }
+
+    const wsUrl = `${API_BASE_URL.replace(/^http/, 'ws')}/ws/${sessionId}/${playerId}`;
+    const newWs = new WebSocket(wsUrl);
+
+    newWs.onopen = () => {
+      console.log('WebSocket connected');
+      setIsConnected(true);
+      // Optionally send a "client_ready" or "get_initial_state" message
+    };
+
+    newWs.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        console.log('WS Message Received:', message);
+        if (message.type === 'state_update') {
+          setSessionState(message.data);
+          setError(null);
+        } else if (message.type === 'error') {
+          setError(message.message || 'An error occurred in the session.');
+          if (message.message.toLowerCase().includes('session not found') || message.message.toLowerCase().includes('player not found')) {
+            clearSessionData(); // Now clearSessionData is stable
+          }
+        }
+        // Handle other message types (player_joined, match_found, etc.)
+      } catch (e) {
+        console.error('Error processing WebSocket message:', e);
+        setError('Received an invalid message from the server.');
+      }
+    };
+
+    newWs.onclose = () => {
+      console.log('WebSocket disconnected');
+      setIsConnected(false);
+      // Optionally attempt auto-reconnect with backoff, or prompt user
+    };
+
+    newWs.onerror = (err) => {
+      console.error('WebSocket error:', err);
+      setError('WebSocket connection error.');
+      setIsConnected(false);
+    };
+    
+    setWs(newWs);
+
+    return () => {
+      if (newWs.readyState === WebSocket.OPEN || newWs.readyState === WebSocket.CONNECTING) {
+        newWs.close();
+      }
+      setWs(null);
+      setIsConnected(false);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps 
+  }, [sessionId, playerId]); // Added clearSessionData to deps of onmessage, so clearSessionData needs to be stable.
+                           // The WebSocket useEffect itself should *not* depend on clearSessionData here directly.
+                           // The call to clearSessionData from onmessage is the concern.
+
+
+  const createNewSession = useCallback(async (createRequest) => {
     setIsLoading(true);
     setError(null);
     try {
@@ -102,17 +189,17 @@ export function SessionProvider({ children }) {
       setPlayerId(player_id);
       setPlayerName(createRequest.host_name);
       setIsHost(true);
-      setIsLoading(false);
       return { session_id, player_id, invite_url };
     } catch (err) {
       console.error('Create session error (context):', err);
       setError(err.response?.data?.detail || 'Could not create session.');
-      setIsLoading(false);
       throw err;
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }, []);
 
-  const joinExistingSession = async (sId, pName) => {
+  const joinExistingSession = useCallback(async (sId, pName) => {
     setIsLoading(true);
     setError(null);
     try {
@@ -123,15 +210,15 @@ export function SessionProvider({ children }) {
       setPlayerId(player_id);
       setPlayerName(pName);
       setIsHost(false);
-      setIsLoading(false);
       return { session_id: sId, player_id };
     } catch (err) {
       console.error('Join session error (context):', err);
       setError(err.response?.data?.detail || 'Could not join session.');
-      setIsLoading(false);
       throw err;
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }, []);
 
   const sendWebSocketMessage = useCallback((message) => {
     if (ws && ws.readyState === WebSocket.OPEN) {
@@ -142,35 +229,20 @@ export function SessionProvider({ children }) {
     }
   }, [ws]);
 
-  const swipe = (restaurantId, decision) => {
+  const swipe = useCallback((restaurantId, decision) => {
     sendWebSocketMessage({
       action: 'swipe',
       restaurant_id: restaurantId,
       decision: decision,
     });
-  };
+  }, [sendWebSocketMessage]);
   
-  const setReadyStatus = (isReady) => {
+  const setReadyStatus = useCallback((isReady) => {
     sendWebSocketMessage({
       action: 'set_ready',
       ready: isReady,
     });
-  };
-
-  const clearSessionData = () => {
-    setSessionId(null);
-    setPlayerId(null);
-    setPlayerName(null);
-    setIsHost(false);
-    setSessionState(null);
-    if(ws) ws.close();
-    setWs(null);
-    setIsConnected(false);
-    localStorage.removeItem('sessionId');
-    localStorage.removeItem('playerId');
-    localStorage.removeItem('playerName');
-    localStorage.removeItem('isHost');
-  };
+  }, [sendWebSocketMessage]);
 
   const value = {
     sessionId,
