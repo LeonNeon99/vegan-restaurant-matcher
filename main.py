@@ -455,6 +455,22 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, player_id: s
                 current_player_data["ready"] = bool(is_ready)
                 print(f"Player {player_name} is now {'ready' if is_ready else 'not ready'}.")
                 await broadcast_state_update(session_id)
+                
+            elif action == "start_session":
+                # Check if this player is the host
+                if current_player_data.get("is_host", False) and session.get("host_id") == player_id:
+                    # Check if all players are ready
+                    all_players_ready = all(player.get("ready", False) for player in session.get("players", {}).values())
+                    if all_players_ready:
+                        session["status"] = "active"
+                        print(f"Session {session_id} started by host {player_name}")
+                        await broadcast_state_update(session_id)
+                    else:
+                        # Send error to host
+                        await websocket.send_json({"type": "error", "message": "All players must be ready to start the session"})
+                else:
+                    # Send error about not being host
+                    await websocket.send_json({"type": "error", "message": "Only the host can start the session"})
 
             # Further actions: e.g., host starts game, advances turn (if turn-based)
 

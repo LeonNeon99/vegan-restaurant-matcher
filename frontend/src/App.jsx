@@ -142,17 +142,8 @@ const SessionActiveDisplay = () => {
     case 'waiting_for_players':
       return <WaitingRoomPage />;
     case 'active':
-        // TODO: Refactor MatchPage to use SessionContext
-        // For now, a very basic placeholder. This will NOT work as MatchPage expects many props.
-        return (
-            <Box sx={{mt: 2, textAlign: 'center'}}>
-                <Typography variant="h5">Session Active - MatchPage Placeholder</Typography>
-                <Typography>Current Player making decisions: {sessionState.players[playerId]?.name}</Typography>
-                <Typography>Restaurant: {sessionState.restaurants && sessionState.restaurants.length > 0 ? sessionState.restaurants[sessionState.players[playerId]?.current_index || 0]?.name : 'Loading restaurants...'}</Typography>
-                {/* <MatchPage {...suitablePropsFromSessionState} /> */}
-                <Button onClick={() => { clearSessionData(); navigate('/'); }} sx={{mt:2}}>Leave Session</Button>
-            </Box>
-        );
+        // Use the MatchPage component with data from sessionState
+        return <MatchPage />;
     case 'completed':
         // TODO: Refactor ResultsPage to use SessionContext
         // Calculate final matches based on sessionState.matches and consensus_threshold

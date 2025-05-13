@@ -50,26 +50,25 @@ export default function CreateSessionPage() {
         setAutocompleteOptions(resp.data.suggestions || []);
       } catch (err) {
         console.error("Autocomplete Error:", err);
-        setFormError(err.response?.data?.detail || 'Error fetching locations'); // Use setFormError
+        setFormError(err.response?.data?.detail || 'Error fetching locations');
         setAutocompleteOptions([]);
       } finally {
         setAutocompleteLoading(false);
       }
-    } else if (reason === 'selectOption' && newValue) {
-         // User selected an option, now geocode it
-        setAutocompleteLoading(true);
-        try {
-            const geocodeResponse = await axios.post(`${API_BASE_URL}/geocode`, { location: newValue });
-            setLocationDetails(geocodeResponse.data); // Store lat, lng, full_address
-            setLocation(geocodeResponse.data.full_address || newValue); // Update input with formatted address
-            setAutocompleteOptions([]);
-        } catch (err) {
-            console.error("Geocoding Error:", err);
-            setFormError(err.response?.data?.detail || 'Error geocoding location'); // Use setFormError
-            setLocationDetails(null);
-        } finally {
-            setAutocompleteLoading(false);
-        }
+    } else if (reason === 'select-option' && newValue) {
+      // Do geocoding when an option is selected
+      setAutocompleteLoading(true);
+      try {
+        const geocodeResponse = await axios.post(`${API_BASE_URL}/geocode`, { location: newValue });
+        setLocationDetails(geocodeResponse.data); // Store lat, lng, full_address
+        setLocation(geocodeResponse.data.full_address || newValue); // Update input with formatted address
+      } catch (err) {
+        console.error("Geocoding Error:", err);
+        setFormError(err.response?.data?.detail || 'Error geocoding location');
+        setLocationDetails(null);
+      } finally {
+        setAutocompleteLoading(false);
+      }
     } else {
       setAutocompleteOptions([]);
     }
@@ -184,19 +183,11 @@ export default function CreateSessionPage() {
               freeSolo
               options={autocompleteOptions}
               loading={autocompleteLoading}
-              onInputChange={handleLocationChange} // Corrected: use onInputChange for text, onChange for selection
-              onChange={(event, newValueOption) => { // Handle selection of an option
-                if (newValueOption) { // An option was selected from the dropdown
-                    handleLocationChange(event, newValueOption, 'selectOption');
-                }
-                // If newValueOption is null (e.g. input cleared via 'x' button), 
-                // onInputChange would have already been called with value: null, reason: 'clear'.
-                // So location and locationDetails should be reset by handleLocationChange.
-              }}
-              value={location} // Controlled input value
-              disabled={contextIsLoading || autocompleteLoading} // Disable if context is loading OR local autocomplete is loading
-              getOptionLabel={(option) => typeof option === 'string' ? option : option.description} // Yelp/Google might return structured options
-              filterOptions={(x) => x} // Backend does filtering
+              onInputChange={handleLocationChange}
+              inputValue={location}
+              disabled={contextIsLoading || autocompleteLoading}
+              getOptionLabel={(option) => typeof option === 'string' ? option : option.description}
+              filterOptions={(x) => x}
               renderInput={(params) => (
                 <TextField 
                   {...params} 
