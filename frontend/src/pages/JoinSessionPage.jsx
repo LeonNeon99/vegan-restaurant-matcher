@@ -1,33 +1,37 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { Box, Button, TextField, Typography, Container, Paper, CircularProgress, Alert } from '@mui/material';
-// import { SessionContext } from '../contexts/SessionContext'; // Will be used later
+import { SessionContext } from '../contexts/SessionContext'; // Uncommented
 import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export default function JoinSessionPage() {
-  // const { joinSession, isLoading: contextLoading, error: contextError } = useContext(SessionContext); // Will be used later
+  const { joinExistingSession, isLoading: contextIsLoading, error: contextError, clearSessionData } = useContext(SessionContext); // Used context
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const sessionIdFromQuery = searchParams.get('session');
 
+  useEffect(() => { // Added useEffect to clear session data
+    clearSessionData();
+  }, [clearSessionData]);
+
   const [playerName, setPlayerName] = useState('');
-  const [sessionId, setSessionId] = useState(sessionIdFromQuery || '');
-  const [sessionDetails, setSessionDetails] = useState(null); // To store basic session info
+  const [sessionIdInput, setSessionIdInput] = useState(sessionIdFromQuery || ''); // Renamed to avoid clash with context sessionId
+  // const [sessionDetails, setSessionDetails] = useState(null); // Can be removed for now if not used
   
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
+  // const [isLoading, setIsLoading] = useState(false); // Will use contextIsLoading
+  const [formError, setFormError] = useState(''); // Renamed error to formError
 
   // Optional: Fetch basic session details to show the user what they are joining
   useEffect(() => {
-    if (sessionId) {
+    if (sessionIdInput) {
       const fetchDetails = async () => {
         // In a real app, you might have a lightweight endpoint to get session metadata
         // For now, we'll just assume the session ID is valid and proceed
         // Example:
         // try {
-        //   const response = await axios.get(`${API_BASE_URL}/sessions/${sessionId}/preview`);
+        //   const response = await axios.get(`${API_BASE_URL}/sessions/${sessionIdInput}/preview`);
         //   setSessionDetails(response.data);
         // } catch (fetchErr) {
         //   setError('Could not retrieve session details. Ensure the link is correct.');
@@ -35,33 +39,31 @@ export default function JoinSessionPage() {
       };
       // fetchDetails(); 
     }
-  }, [sessionId]);
+  }, [sessionIdInput]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!playerName || !sessionId) {
-      setError('Your name and a session ID are required.');
+    if (!playerName || !sessionIdInput) {
+      setFormError('Your name and a session ID are required.');
       return;
     }
-    setError('');
-    setIsLoading(true);
+    setFormError('');
+    // setIsLoading(true); // Context will handle its own loading state
 
     try {
-      // const joinData = await joinSession(sessionId, playerName); // Context function
-      const response = await axios.post(`${API_BASE_URL}/sessions/${sessionId}/join`, { player_name: playerName });
-      const joinData = response.data;
+      // Use context function to join and set context state
+      const joinDataFromContext = await joinExistingSession(sessionIdInput, playerName);
 
-      console.log("Joined session:", joinData);
-      // Navigate to the session/match page, passing player ID
-      // This will require the WebSocket connection to be established by the next page
-      navigate(`/session/${joinData.session_id}/player/${joinData.player_id}`);
+      console.log("Joined session via context:", joinDataFromContext);
+      // Navigate to the session page. SessionContext should now have the necessary IDs.
+      navigate(`/session/${joinDataFromContext.session_id}/player/${joinDataFromContext.player_id}`);
       
     } catch (err) {
-      console.error("Join Session Error:", err);
-      setError(err.response?.data?.detail || 'Failed to join session. Please check the Session ID or link.');
-    } finally {
-      setIsLoading(false);
+      console.error("Join Session Error (from page submit):", err);
+      // contextError should be set by joinExistingSession if it throws
+      setFormError(err.message || contextError || 'Failed to join session. Please check the Session ID or link.');
     }
+    // finally { setIsLoading(false); } // Context handles its loading state
   };
 
   return (
@@ -69,20 +71,15 @@ export default function JoinSessionPage() {
       <Container maxWidth="xs">
         <Paper elevation={6} sx={{ p: 4, borderRadius: 4 }}>
           <Typography variant="h4" align="center" gutterBottom>Join Session</Typography>
-          {sessionDetails && (
-            <Box sx={{mb: 2, p:1, border: '1px solid #eee', borderRadius:1}}>
-              <Typography variant="body2">Joining session for: {sessionDetails.location}</Typography>
-              <Typography variant="caption">Hosted by: {sessionDetails.hostName}</Typography>
-            </Box>
-          )}
+          {/* {sessionDetails && ( ... )} */}
           <Box component="form" onSubmit={handleSubmit}>
             <TextField
               fullWidth
               label="Session ID"
-              value={sessionId}
-              onChange={e => setSessionId(e.target.value)}
+              value={sessionIdInput}
+              onChange={e => setSessionIdInput(e.target.value)}
               sx={{ mb: 2 }}
-              disabled={isLoading || !!sessionIdFromQuery} // Disable if from query param
+              disabled={contextIsLoading || !!sessionIdFromQuery} // Disable if context is loading or from query
               InputProps={{
                 readOnly: !!sessionIdFromQuery,
               }}
@@ -93,19 +90,20 @@ export default function JoinSessionPage() {
               value={playerName} 
               onChange={e => setPlayerName(e.target.value)} 
               sx={{ mb: 2 }} 
-              disabled={isLoading}
+              disabled={contextIsLoading}
             />
             
-            {error && <Alert severity="error" sx={{ mt: 2, mb: 2 }}>{error}</Alert>}
+            {formError && <Alert severity="error" sx={{ mt: 2, mb: 2 }}>{formError}</Alert>}
+            {contextError && !formError && <Alert severity="error" sx={{ mt: 2, mb: 2 }}>{contextError}</Alert>}
             <Button 
               fullWidth 
               variant="contained" 
               type="submit" 
               size="large" 
-              disabled={isLoading}
+              disabled={contextIsLoading} // Use contextIsLoading
               sx={{ mt: 2 }}
             >
-              {isLoading ? <CircularProgress size={24} color="inherit" /> : 'Join Session'}
+              {contextIsLoading ? <CircularProgress size={24} color="inherit" /> : 'Join Session'} 
             </Button>
           </Box>
         </Paper>
