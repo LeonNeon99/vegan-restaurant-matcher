@@ -115,33 +115,45 @@ export default function CreateSessionPage() {
 
   if (inviteUrl) {
     return (
-      <Container maxWidth="sm" sx={{ py: 4 }}>
-        <Paper elevation={6} sx={{ p: 4, borderRadius: 4, textAlign: 'center' }}>
-          <Typography variant="h5" gutterBottom>Session Created!</Typography>
-          <Typography variant="body1" sx={{ mb: 2 }}>Share this link with your friends:</Typography>
-          <TextField
-            fullWidth
-            value={inviteUrl}
-            readOnly
-            sx={{ mb: 2 }}
-            onClick={(e) => e.target.select()}
-          />
-          <Button variant="contained" onClick={() => navigator.clipboard.writeText(inviteUrl)} sx={{ mr: 1 }}>
-            Copy Link
-          </Button>
-          {/* TODO: Add a button for the host to proceed to the session/waiting room */}
-           <Button variant="outlined" onClick={() => navigate('/')} sx={{ml:1}}>
-            Back to Home
-          </Button>
-        </Paper>
-      </Container>
+      <Box 
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '100vh',
+          bgcolor: 'grey.100',
+          py: 4
+        }}
+      >
+        <Container maxWidth="sm">
+          <Paper elevation={6} sx={{ p: 4, borderRadius: 2, textAlign: 'center' }}>
+            <Typography variant="h5" gutterBottom>Session Created!</Typography>
+            <Typography variant="body1" sx={{ mb: 2 }}>Share this link with your friends:</Typography>
+            <TextField
+              fullWidth
+              value={inviteUrl}
+              readOnly
+              sx={{ mb: 2 }}
+              onClick={(e) => e.target.select()}
+            />
+            <Button variant="contained" onClick={() => navigator.clipboard.writeText(inviteUrl)} sx={{ mr: 1 }}>
+              Copy Link
+            </Button>
+            {/* TODO: Add a button for the host to proceed to the session/waiting room */}
+             <Button variant="outlined" onClick={() => navigate('/')} sx={{ml:1}}>
+              Back to Home
+            </Button>
+          </Paper>
+        </Container>
+      </Box>
     );
   }
 
   return (
-    <Box sx={{ minHeight: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', bgcolor: 'grey.100', py: 4 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', bgcolor: 'grey.100', py: 4 }}>
       <Container maxWidth="sm">
-        <Paper elevation={6} sx={{ p: {xs: 2, sm:4}, borderRadius: 4 }}>
+        <Paper elevation={6} sx={{ p: {xs: 2, sm:4}, borderRadius: 2 }}>
           <Typography variant="h4" align="center" gutterBottom>Create New Session</Typography>
           <Box component="form" onSubmit={handleSubmit}>
             <TextField fullWidth label="Your Name (Host)" value={hostName} onChange={e => setHostName(e.target.value)} sx={{ mb: 2 }} disabled={isLoading}/>
