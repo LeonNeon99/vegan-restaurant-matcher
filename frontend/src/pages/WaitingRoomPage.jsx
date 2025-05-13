@@ -14,7 +14,8 @@ function WaitingRoomPage() {
     sendWebSocketMessage,
     clearSessionData,
     isLoading, // from context, for general loading state
-    error // from context, for general errors
+    error, // from context, for general errors
+    isConnected // Add isConnected from context
   } = useContext(SessionContext);
   const navigate = useNavigate();
 
@@ -49,7 +50,7 @@ function WaitingRoomPage() {
 
   const inviteLink = invite_url || `${window.location.origin}/join?session=${sessionId}`;
 
-  const canStartSession = isHost && Object.values(players).every(p => p.ready) && Object.values(players).length > 1;
+  const canStartSession = isHost && isConnected && Object.values(players).every(p => p.ready) && Object.values(players).length > 1;
   // Or allow host to start alone for testing if desired: Object.values(players).every(p => p.ready) && Object.values(players).length >= 1
 
   return (

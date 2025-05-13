@@ -137,7 +137,7 @@ export default function MatchPage() {
         <RestaurantCard
           restaurant={currentRestaurant}
           onLike={() => handleSwipe('like')}
-          onDislike={() => handleSwipe('pass')} // Assuming 'pass' is the backend action for dislike
+          onDislike={() => handleSwipe('dislike')}
           onSuperlike={() => handleSwipe('superlike')}
           isSuperliked={isSuperlikedByCurrentUser} // If current user superliked this one
           otherPlayerSuperlikeIds={otherPlayerSuperlikeIds} // Set of restaurant IDs superliked by others
@@ -149,7 +149,7 @@ export default function MatchPage() {
       )}
 
       <Stack direction="row" spacing={2} sx={{ mt: 2, width: '100%', justifyContent: 'center' }}>
-        <Button variant="outlined" color="error" onClick={() => handleSwipe('pass')} disabled={!isMyTurn || !currentRestaurant} sx={{ flexGrow: 1, py:1.5}}>
+        <Button variant="outlined" color="error" onClick={() => handleSwipe('dislike')} disabled={!isMyTurn || !currentRestaurant} sx={{ flexGrow: 1, py:1.5}}>
           Pass
         </Button>
         <Button variant="contained" color="success" onClick={() => handleSwipe('like')} disabled={!isMyTurn || !currentRestaurant} sx={{ flexGrow: 1, py:1.5}}>

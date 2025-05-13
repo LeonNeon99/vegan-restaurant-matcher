@@ -448,6 +448,19 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, player_id: s
                     
                     session["matches"] = session_matches # Ensure session dict is updated
                     print(f"Player {player_name} swiped {decision} on {restaurant_id}. Votes: {session_matches[restaurant_id]}")
+                    
+                    # Update player's current_index
+                    current_player_data["current_index"] = current_player_data.get("current_index", 0) + 1
+                    
+                    # Check if all players have completed swiping through all restaurants
+                    if all(
+                        p.get("current_index", 0) >= len(session.get("restaurants", []))
+                        for p in session.get("players", {}).values()
+                        if p.get("connected", False)  # Only count connected players
+                    ):
+                        session["status"] = "completed"
+                        print(f"Session {session_id} marked as completed - all players have swiped through all restaurants")
+                    
                     await broadcast_state_update(session_id)
             
             elif action == "set_ready":

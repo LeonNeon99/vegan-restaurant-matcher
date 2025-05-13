@@ -253,7 +253,7 @@ export default function CreateSessionPage() {
             
             {formError && <Alert severity="error" sx={{ mt: 2, mb: 2 }}>{formError}</Alert>}
             {contextError && !formError && <Alert severity="error" sx={{ mt: 2, mb: 2 }}>{contextError}</Alert>} 
-            <Button fullWidth variant="contained" type="submit" size="large" disabled={contextIsLoading || autocompleteLoading || !locationDetails} sx={{ mt: 2 }} >
+            <Button fullWidth variant="contained" type="submit" size="large" disabled={contextIsLoading || autocompleteLoading} sx={{ mt: 2 }} >
               {contextIsLoading ? <CircularProgress size={24} color="inherit" /> : 'Create Session & Get Invite Link'} 
             </Button>
           </Box>

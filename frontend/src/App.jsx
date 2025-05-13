@@ -145,28 +145,8 @@ const SessionActiveDisplay = () => {
         // Use the MatchPage component with data from sessionState
         return <MatchPage />;
     case 'completed':
-        // TODO: Refactor ResultsPage to use SessionContext
-        // Calculate final matches based on sessionState.matches and consensus_threshold
-        const finalMatches = [];
-        if (sessionState.matches) {
-            for (const bizId in sessionState.matches) {
-                const votes = sessionState.matches[bizId];
-                const likeCount = (votes.likes?.length || 0) + (votes.superlikes?.length || 0);
-                const totalPlayers = Object.keys(sessionState.players).length;
-                if (totalPlayers > 0 && (likeCount / totalPlayers) >= sessionState.consensus_threshold) {
-                    const restaurant = sessionState.restaurants.find(r => r.id === bizId);
-                    if (restaurant) finalMatches.push(restaurant); // Add more details if needed for ResultsPage
-                }
-            }
-        }
-        return (
-            <Box sx={{mt: 2, textAlign: 'center'}}>
-                <Typography variant="h5">Session Completed - ResultsPage Placeholder</Typography>
-                <Typography>Matches Found: {finalMatches.length}</Typography>
-                {/* <ResultsPage matches={finalMatches} onRestart={() => navigate('/')} player1Superlikes={[]} player2Superlikes={[]} /> */}
-                <Button onClick={() => { clearSessionData(); navigate('/'); }} sx={{mt:2}}>Start New Game</Button>
-            </Box>
-        );
+        // Use the proper ResultsPage component
+        return <ResultsPage />;
     case 'error_fetching_restaurants':
         return <Container sx={{mt:5, textAlign: 'center'}}><Alert severity="error">Error: Could not load restaurants for this session.</Alert><Button onClick={() => { clearSessionData(); navigate('/'); }} sx={{mt:2}}>Go Home</Button></Container>; 
     default:
