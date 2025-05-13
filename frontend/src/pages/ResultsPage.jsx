@@ -1,101 +1,125 @@
-import React from 'react';
-import { Box, Button, Typography, Card, CardContent, Container, Stack, Paper, Rating, Grid, CardMedia } from '@mui/material';
+import React, { useContext, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { SessionContext } from '../contexts/SessionContext';
+import RestaurantCard from '../components/RestaurantCard';
+import { Box, Button, Container, Typography, Grid, Paper, Alert, CircularProgress, Chip, Avatar, Tooltip } from '@mui/material';
+import { Replay, Home, EmojiEvents } from '@mui/icons-material';
 
-import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
-import StarIcon from '@mui/icons-material/Star';
+function ResultsPage() {
+  const {
+    sessionState,
+    clearSessionData,
+    isLoading: contextIsLoading,
+    error: contextError,
+    playerId // this is the viewingPlayerId
+  } = useContext(SessionContext);
+  const navigate = useNavigate();
 
-export default function ResultsPage({ matches = [], player1Superlikes = [], player2Superlikes = [], onRestart }) {
-  const p1SuperlikedIds = new Set((player1Superlikes || []).map(r => r.id));
-  const p2SuperlikedIds = new Set((player2Superlikes || []).map(r => r.id));
+  const finalMatches = useMemo(() => {
+    if (!sessionState || sessionState.status !== 'completed' || !sessionState.restaurants || !sessionState.matches) {
+      return [];
+    }
+    const { restaurants, matches, players, consensus_threshold } = sessionState;
+    const calculatedMatches = [];
+
+    for (const bizId in matches) {
+      const restaurant = restaurants.find(r => r.id === bizId);
+      if (!restaurant) continue;
+
+      const votes = matches[bizId];
+      const likedByPlayerIds = votes.likes || [];
+      const superlikedByPlayerIds = votes.superlikes || [];
+      const totalUniqueLikers = new Set([...likedByPlayerIds, ...superlikedByPlayerIds]);
+      
+      const numTotalPlayers = Object.keys(players).length;
+      // Ensure playerId from context is valid before using it for likedByCurrentUser/superlikedByCurrentUser
+      const validPlayerId = playerId && players[playerId] ? playerId : null;
+
+      if (numTotalPlayers > 0 && (totalUniqueLikers.size / numTotalPlayers) >= consensus_threshold) {
+        calculatedMatches.push({
+          ...restaurant,
+          likedBy: likedByPlayerIds.map(pId => players[pId]?.name || 'A player'),
+          superlikedBy: superlikedByPlayerIds.map(pId => players[pId]?.name || 'A player'),
+          allLikers: Array.from(totalUniqueLikers).map(pId => players[pId]).filter(Boolean), // Filter out undefined players if any pId was bad
+          likedByCurrentUser: validPlayerId ? likedByPlayerIds.includes(validPlayerId) : false,
+          superlikedByCurrentUser: validPlayerId ? superlikedByPlayerIds.includes(validPlayerId) : false,
+        });
+      }
+    }
+    return calculatedMatches.sort((a,b) => (b.superlikedBy.length - a.superlikedBy.length) || (b.likedBy.length - a.likedBy.length));
+  }, [sessionState, playerId]); // Added playerId to dependency array
+
+  if (contextIsLoading && !sessionState) {
+    return <Container sx={{ mt: 5, textAlign: 'center' }}><CircularProgress /><Typography>Loading results...</Typography></Container>;
+  }
+  if (contextError) {
+    return (
+      <Container sx={{ mt: 5, textAlign: 'center' }}>
+        <Alert severity="error">Session Error: {contextError}</Alert>
+        <Button onClick={() => { clearSessionData(); navigate('/'); }} sx={{mt:2}}>Go Home</Button>
+      </Container>
+    );
+  }
+  if (!sessionState || sessionState.status !== 'completed') {
+    return <Container sx={{ mt: 5, textAlign: 'center' }}><Typography>Waiting for session to complete...</Typography><CircularProgress sx={{mt:2}}/></Container>;
+  }
+
+  const handlePlayAgain = () => {
+    clearSessionData();
+    navigate('/create-session');
+  };
+
+  const handleGoHome = () => {
+    clearSessionData();
+    navigate('/');
+  };
 
   return (
-    <Box sx={{ minHeight: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', bgcolor: 'grey.100', py: { xs: 3, md: 6 } }}>
-      <Container maxWidth="md">
-        <Paper elevation={3} sx={{ borderRadius: 4, p: { xs: 2, md: 4 }, bgcolor: 'background.paper' }}>
-          <Typography variant="h3" align="center" gutterBottom sx={{ fontWeight: 'bold', color: 'primary.main' }}>
-            It's a Match!
-          </Typography>
-          <Typography variant="h6" align="center" color="text.secondary" sx={{ mb: 4 }}>
-            You both liked these restaurants:
-          </Typography>
-          
-          {matches.length === 0 ? (
-            <Typography align="center" sx={{ my: 4 }}>No mutual likes found. Maybe try adjusting your filters?</Typography>
-          ) : (
-            <Grid container spacing={3} justifyContent="center">
-              {matches.map((biz, idx) => {
-                const isP1Superlike = p1SuperlikedIds.has(biz.id);
-                const isP2Superlike = p2SuperlikedIds.has(biz.id);
-                const wasSuperliked = isP1Superlike || isP2Superlike;
+    <Container maxWidth="lg" sx={{ py: 4 }}>
+      <Paper elevation={3} sx={{ p: { xs: 2, sm: 4 }, borderRadius: 2, textAlign: 'center' }}>
+        <EmojiEvents color="warning" sx={{ fontSize: 60, mb: 2 }} />
+        <Typography variant="h3" component="h1" gutterBottom>
+          Session Results!
+        </Typography>
 
-                return (
-                  <Grid item key={biz.id || idx} xs={12} sm={6} md={4}>
-                    <Card sx={{ 
-                      borderRadius: 3, 
-                      height: '100%', 
-                      display: 'flex', 
-                      flexDirection: 'column',
-                      border: wasSuperliked ? '2px solid' : '1px solid',
-                      borderColor: wasSuperliked ? 'primary.main' : 'grey.300'
-                    }}>
-                      <CardMedia 
-                        component="img" 
-                        height="140"
-                        image={biz.image_url || 'https://via.placeholder.com/345x140.png?text=No+Image'}
-                        alt={biz.name}
-                        sx={{ objectFit: 'cover' }} 
-                      />
-                      <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-                        <Typography variant="h6" gutterBottom sx={{ fontWeight: 500 }}>{biz.name}</Typography>
-                        
-                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                          <Rating name="read-only" value={biz.rating} precision={0.5} readOnly size="small"/>
-                          <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-                            ({biz.review_count} reviews)
-                          </Typography>
-                        </Box>
-                        
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                          {biz.location?.display_address?.join(', ') || 'Address not available'}
-                        </Typography>
-                        
-                        {wasSuperliked && (
-                          <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mb: 1, color: 'primary.main' }}>
-                            <StarIcon fontSize="small" />
-                            <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                              Superliked!
-                            </Typography>
-                          </Stack>
-                        )}
-                        
-                        <Box sx={{ flexGrow: 1 }} /> 
+        {finalMatches.length > 0 ? (
+          <Typography variant="h5" color="text.secondary" sx={{ mb: 4 }}>
+            Here are the restaurants you all agreed on:
+          </Typography>
+        ) : (
+          <Typography variant="h5" color="text.secondary" sx={{ mb: 4 }}>
+            No consensus matches this time. Try again with different options or a bigger group!
+          </Typography>
+        )}
+      </Paper>
 
-                        <Button 
-                          variant="outlined" 
-                          href={biz.url} 
-                          target="_blank" 
-                          size="small"
-                          sx={{ mt: 1, alignSelf: 'center' }}
-                          disabled={!biz.url}
-                        >
-                          View on Yelp
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                );
-              })}
-            </Grid>
-          )}
-          
-          <Stack direction="row" justifyContent="center" sx={{ mt: 5 }}>
-            <Button variant="contained" onClick={onRestart} size="large">
-              Start New Search
-            </Button>
-          </Stack>
-        </Paper>
-      </Container>
-    </Box>
+      <Grid container spacing={3} sx={{ mt: 2 }}>
+        {finalMatches.map((restaurant) => (
+          <Grid item xs={12} sm={6} md={4} key={restaurant.id}>
+            <RestaurantCard 
+              restaurant={restaurant} 
+              isMatched={true} 
+              showMatchDetails={true}
+              allLikers={restaurant.allLikers}
+              likedByCurrentUser={restaurant.likedByCurrentUser}
+              superlikedByCurrentUser={restaurant.superlikedByCurrentUser}
+              viewingPlayerId={playerId} // Pass the viewing player's ID
+            />
+          </Grid>
+        ))}
+      </Grid>
+
+      <Box sx={{ mt: 5, display: 'flex', justifyContent: 'center', gap: 2, flexWrap: 'wrap' }}>
+        <Button variant="contained" color="primary" onClick={handlePlayAgain} startIcon={<Replay />} size="large">
+          Play Again (New Session)
+        </Button>
+        <Button variant="outlined" color="secondary" onClick={handleGoHome} startIcon={<Home />} size="large">
+          Back to Home
+        </Button>
+      </Box>
+    </Container>
   );
 }
+
+export default ResultsPage;
 

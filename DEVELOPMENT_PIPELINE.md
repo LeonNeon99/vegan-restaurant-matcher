@@ -162,8 +162,8 @@ This document outlines planned improvements and features for the Vegan Restauran
 
 ## 6. Implement Session Sharing via Invite Link
 
-*   **Goal:** Enable two users on different devices/browsers to participate in the same matching session simultaneously, initiated via a shared link.
-*   **Problem:** Currently, the app seems designed for two players on the *same* device. Sharing requires significant architectural changes for state synchronization.
+*   **Goal:** Enable multiple users (up to 10) on different devices/browsers to participate in the same matching session simultaneously, initiated via a shared link.
+*   **Problem:** Currently, the app seems designed for two players on the *same* device. Sharing requires significant architectural changes for state synchronization and group consensus.
 *   **Detailed Implementation Plan:**
     *   **Backend Architecture:**
         *   **Session State:** Design a comprehensive session model to store all necessary data:
@@ -182,7 +182,7 @@ This document outlines planned improvements and features for the Vegan Restauran
                     "sort_by": "best_match"               # Sort criteria
                 },
                 "players": {
-                    "player1": {
+                    "player_1": {                         # Dictionary of players keyed by ID
                         "id": "p1_unique_id",             # Random UUID for the player
                         "name": "Alice",                  # Player name
                         "connected": True,                # WebSocket connection status
@@ -192,24 +192,33 @@ This document outlines planned improvements and features for the Vegan Restauran
                             "biz_id_2": "dislike",
                             "biz_id_3": "superlike"
                         },
-                        "current_index": 5                # Current restaurant index for this player
+                        "current_index": 5,               # Current restaurant index for this player
+                        "is_host": True                   # Whether this player is the session host
                     },
-                    "player2": {                          # May be null initially
+                    "player_2": {
                         "id": "p2_unique_id",
                         "name": "Bob",
-                        # Same structure as player1
-                    }
+                        # Same structure as player_1
+                        "is_host": False
+                    },
+                    # More players can be added (up to 10)
                 },
+                "max_players": 10,                        # Maximum number of players allowed
                 "restaurants": [                          # Array of restaurant objects from Yelp
                     { "id": "biz_id_1", ... },
                     { "id": "biz_id_2", ... },
                     # More restaurants...
                 ],
-                "matches": [                              # Restaurant IDs both players liked
-                    "biz_id_1",
-                    # More match IDs...
-                ],
-                "current_turn": "player1",                # Whose turn it is to swipe
+                "matches": {                              # Dictionary tracking votes per restaurant
+                    "biz_id_1": {
+                        "likes": ["p1_unique_id", "p2_unique_id"],  # Players who liked
+                        "superlikes": ["p3_unique_id"],             # Players who superliked
+                        "dislikes": ["p4_unique_id"]                # Players who disliked
+                    },
+                    # More restaurants with vote tallies...
+                },
+                "consensus_threshold": 0.5,               # Percentage of likes needed to be a match (configurable)
+                "mode": "freeform",                       # "turn-based" or "freeform" swiping mode
                 "status": "active"                        # Session status (active, completed, expired)
             }
             ```
@@ -225,15 +234,42 @@ This document outlines planned improvements and features for the Vegan Restauran
                     return sessions.get(session_id)
                 
                 # Function to create a new session
-                def create_session(player_name, location, lat, lng, radius, **filters):
+                def create_session(host_name, location, lat, lng, radius, max_players=10, consensus_threshold=0.5, mode="freeform", **filters):
                     session_id = str(uuid.uuid4())
+                    player_id = str(uuid.uuid4())
+                    
                     # Initialize session structure
                     sessions[session_id] = {
                         "id": session_id,
                         "created_at": datetime.now().isoformat(),
-                        # ...rest of structure as above
+                        "setup": {
+                            "location": location,
+                            "lat": lat,
+                            "lng": lng,
+                            "radius": radius,
+                            "price": filters.get("price", "1,2,3,4"),
+                            "min_rating": filters.get("min_rating", 0),
+                            "sort_by": filters.get("sort_by", "best_match")
+                        },
+                        "players": {
+                            player_id: {
+                                "id": player_id,
+                                "name": host_name,
+                                "connected": False,
+                                "ready": False,
+                                "swipes": {},
+                                "current_index": 0,
+                                "is_host": True
+                            }
+                        },
+                        "max_players": max_players,
+                        "restaurants": [],
+                        "matches": {},
+                        "consensus_threshold": consensus_threshold,
+                        "mode": mode,
+                        "status": "waiting_for_players"
                     }
-                    return session_id
+                    return session_id, player_id
                 ```
             *   Add session cleanup to prevent memory leaks (e.g., delete sessions inactive for 24+ hours)
             *   Consider moving to Redis or a database like MongoDB later for persistence and scale
@@ -296,7 +332,7 @@ This document outlines planned improvements and features for the Vegan Restauran
                 @app.post("/sessions/create")
                 async def create_session_endpoint(request: CreateSessionRequest):
                     # Request model contains player name, location details, filters
-                    session_id = create_session(request.player_name, request.location, request.lat, request.lng, request.radius, ...)
+                    session_id, player_id = create_session(request.player_name, request.location, request.lat, request.lng, request.radius, ...)
                     
                     # Fetch restaurants async (don't wait) to populate the session
                     background_tasks.add_task(fetch_restaurants_for_session, session_id)
@@ -304,7 +340,7 @@ This document outlines planned improvements and features for the Vegan Restauran
                     # Return session info with URL to share
                     return {
                         "session_id": session_id,
-                        "player_id": sessions[session_id]["players"]["player1"]["id"],
+                        "player_id": player_id,
                         "invite_url": f"{FRONTEND_URL}/join?session={session_id}"
                     }
                 ```
@@ -317,18 +353,20 @@ This document outlines planned improvements and features for the Vegan Restauran
                     if not session:
                         raise HTTPException(status_code=404, detail="Session not found")
                         
-                    if session["players"].get("player2"):
-                        raise HTTPException(status_code=400, detail="Session already has two players")
+                    # Check if session is full
+                    if len(session["players"]) >= session["max_players"]:
+                        raise HTTPException(status_code=400, detail="Session is full")
                         
-                    # Add player2 to session
+                    # Add new player to session
                     player_id = str(uuid.uuid4())
-                    session["players"]["player2"] = {
+                    session["players"][player_id] = {
                         "id": player_id,
                         "name": request.player_name,
                         "connected": False,
                         "ready": False,
                         "swipes": {},
-                        "current_index": 0
+                        "current_index": 0,
+                        "is_host": False
                     }
                     
                     return {
@@ -482,9 +520,11 @@ This document outlines planned improvements and features for the Vegan Restauran
                   const [sessionId, setSessionId] = useState(null);
                   const [playerId, setPlayerId] = useState(null);
                   const [playerName, setPlayerName] = useState('');
-                  const [playerType, setPlayerType] = useState(null); // 'player1' or 'player2'
+                  const [isHost, setIsHost] = useState(false);
                   const [sessionState, setSessionState] = useState(null);
+                  const [players, setPlayers] = useState({});
                   const [currentRestaurant, setCurrentRestaurant] = useState(null);
+                  const [matchedRestaurants, setMatchedRestaurants] = useState([]);
                   
                   // Setup WebSocket connection using the custom hook
                   const { isConnected, lastMessage, sendMessage } = useSessionWebSocket(sessionId, playerId);
@@ -494,49 +534,87 @@ This document outlines planned improvements and features for the Vegan Restauran
                     if (!lastMessage) return;
                     
                     // Update state based on message type
-                    if (lastMessage.type === 'state_update') {
-                      setSessionState(lastMessage.data);
-                      // Updated current restaurant if needed
-                      // etc.
+                    switch (lastMessage.type) {
+                      case 'state_update':
+                        setSessionState(lastMessage.data);
+                        setPlayers(lastMessage.data.players || {});
+                        // Set current restaurant if needed
+                        break;
+                      case 'player_joined':
+                        // Update players list
+                        break;
+                      case 'match_found':
+                        // Add to matches list and show notification
+                        break;
+                      case 'player_left':
+                        // Update players list
+                        break;
+                      // Handle other message types
                     }
                   }, [lastMessage]);
                   
-                  // Functions to interact with the session
-                  const createSession = async (playerName, location, lat, lng, radius, filters) => {
-                    // Call API to create session
-                    // Set sessionId, playerId, and playerType
+                  // Session creation - for the host
+                  const createSession = async (playerName, location, lat, lng, radius, filters, options = {}) => {
+                    try {
+                      const response = await axios.post(`${API_BASE_URL}/sessions/create`, {
+                        player_name: playerName,
+                        location,
+                        lat,
+                        lng,
+                        radius,
+                        ...filters,
+                        max_players: options.maxPlayers || 10,
+                        consensus_threshold: options.consensusThreshold || 0.5,
+                        mode: options.mode || 'freeform'
+                      });
+                      
+                      setSessionId(response.data.session_id);
+                      setPlayerId(response.data.player_id);
+                      setPlayerName(playerName);
+                      setIsHost(true);
+                      
+                      return response.data;
+                    } catch (error) {
+                      console.error('Failed to create session:', error);
+                      throw error;
+                    }
                   };
                   
+                  // Join existing session - for non-host players
                   const joinSession = async (sessionId, playerName) => {
-                    // Call API to join session
-                    // Set sessionId, playerId, and playerType
+                    try {
+                      const response = await axios.post(`${API_BASE_URL}/sessions/${sessionId}/join`, {
+                        player_name: playerName
+                      });
+                      
+                      setSessionId(sessionId);
+                      setPlayerId(response.data.player_id);
+                      setPlayerName(playerName);
+                      setIsHost(false);
+                      
+                      return response.data;
+                    } catch (error) {
+                      console.error('Failed to join session:', error);
+                      throw error;
+                    }
                   };
                   
-                  const swipe = (restaurantId, decision) => {
-                    sendMessage({
-                      action: 'swipe',
-                      restaurant_id: restaurantId,
-                      decision: decision
-                    });
-                  };
-                  
-                  const finishTurn = () => {
-                    sendMessage({ action: 'finish_turn' });
-                  };
+                  // Other methods like swipe, etc.
                   
                   return (
                     <SessionContext.Provider value={{
                       sessionId,
                       playerId,
                       playerName,
-                      playerType,
+                      isHost,
                       sessionState,
+                      players,
                       currentRestaurant,
+                      matchedRestaurants,
                       isConnected,
                       createSession,
                       joinSession,
-                      swipe,
-                      finishTurn
+                      // Other methods
                     }}>
                       {children}
                     </SessionContext.Provider>
@@ -545,23 +623,37 @@ This document outlines planned improvements and features for the Vegan Restauran
                 ```
                 
         *   **UI Changes:**
-            *   Create a **CreateSessionPage** that reuses elements from the existing SetupPage:
-                *   Form for player name, location, radius, and filters
+            *   Create a **CreateSessionPage** that extends the existing SetupPage:
+                *   Form for host name, location, radius, and filters
+                *   Additional options for group settings:
+                    *   Maximum number of players (2-10)
+                    *   Consensus threshold (e.g., 50%, 66%, 75%, 100%)
+                    *   Swiping mode: Turn-based or Freeform (everyone swipes at their own pace)
                 *   Button to create session
                 *   Display for the invite link once created
             
             *   Create a **JoinSessionPage** with:
                 *   Form for player name
-                *   Display of session details (location, etc.)
+                *   Display of session details and current players
                 *   "Join Session" button
             
-            *   Update **MatchPage** to:
-                *   Show whose turn it is
-                *   Disable controls when it's not the current player's turn
-                *   Show real-time updates about the other player's actions
-                *   Handle reconnection/disconnection scenarios
+            *   Create a **WaitingRoom** component:
+                *   Shows all connected players
+                *   Indicates who is ready
+                *   Host has options to start the session or remove players
+                *   Countdown timer once all players are ready
             
-            *   Update **ResultsPage** to show real-time match updates
+            *   Update **MatchPage** to:
+                *   Show all players and their progress
+                *   Display real-time updates for matches and player actions
+                *   In turn-based mode: clearly indicate whose turn it is
+                *   In freeform mode: allow anyone to swipe anytime
+                *   Add "Ready for Results" button once a player finishes swiping
+            
+            *   Update **ResultsPage** to show:
+                *   Consensus-based match results with vote counts
+                *   Which players liked/superliked each match
+                *   Option to sort by popularity
             
         *   **Navigation Flow:**
             *   **Player 1 Flow:**
@@ -610,11 +702,18 @@ This document outlines planned improvements and features for the Vegan Restauran
         *   Implement session cleanup and expiration logic
     
 *   **Considerations & Potential Challenges:**
-    *   **Server Resources:** WebSockets maintain persistent connections. For a production environment, ensure the server can handle multiple concurrent sessions.
-    *   **Reconnection Logic:** Develop robust handling for players disconnecting and reconnecting.
-    *   **Session Persistence:** The in-memory approach will lose all sessions if the server restarts. Consider Redis or a database for persistence in production.
-    *   **Scale:** The proposed architecture should handle dozens of concurrent sessions, but scaling to hundreds or thousands would require further optimization.
-    *   **Testing:** Test with various network conditions, including high latency and intermittent connectivity.
+    *   **Session Management Complexity:** Supporting up to 10 players increases state complexity and synchronization challenges.
+    *   **Consensus Algorithm:** Determining what constitutes a "match" with multiple players needs careful consideration. Options include:
+        *   Simple majority (>50% positive votes)
+        *   Super majority (e.g., ≥66% or ≥75% positive votes)
+        *   Unanimous consensus (everyone must like)
+        *   Veto system (no one can dislike)
+        *   Weighted voting (superlikes count more than regular likes)
+    *   **UI Space Constraints:** Displaying information about multiple players and their votes requires careful UI design, especially on mobile.
+    *   **Turn Management:** In turn-based mode, handling player absence/disconnection becomes more important.
+    *   **Server Load:** With up to 10 WebSocket connections per session and more complex state, server resource usage increases.
+    *   **Connection Management:** More robust reconnection handling is needed with more participants.
+    *   **Testing Complexity:** Testing scenarios with many players increases exponentially.
 
 *   **Status:** In Progress
 
