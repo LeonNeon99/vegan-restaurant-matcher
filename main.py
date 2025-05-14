@@ -79,6 +79,7 @@ class Session(BaseModel):
     mode: str = "freeform" # "turn-based" or "freeform"
     status: str = "waiting_for_players" # "waiting_for_players", "active", "completed", "expired"
     host_id: str = ""
+    finished_players: List[str] = Field(default_factory=list)  # Track which players have finished
 
 class CreateSessionRequest(BaseModel):
     host_name: str
@@ -472,15 +473,21 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, player_id: s
                     # Update player's current_index
                     current_player_data["current_index"] = current_player_data.get("current_index", 0) + 1
                     
-                    # Check if all players have completed swiping through all restaurants
-                    if all(
-                        p.get("current_index", 0) >= len(session.get("restaurants", []))
-                        for p in session.get("players", {}).values()
-                        if p.get("connected", False)  # Only count connected players
-                    ):
-                        session["status"] = "completed"
-                        print(f"Session {session_id} marked as completed - all players have swiped through all restaurants")
+                    # Check if this player has finished all restaurants
+                    if current_player_data["current_index"] >= len(session.get("restaurants", [])) and player_id not in session.get("finished_players", []):
+                        session.setdefault("finished_players", []).append(player_id)
+                        print(f"Player {player_name} has finished all restaurants")
+                        
+                        # If this is the first player to finish, update status
+                        if len(session.get("finished_players", [])) == 1 and len(session.get("players", {})) > 1:
+                            session["status"] = "some_players_finished"
+                            print(f"Session {session_id} - waiting for other players to finish")
                     
+                    # Check if all players have completed swiping through all restaurants
+                    if len(session.get("finished_players", [])) == len([p for p in session.get("players", {}).values() if p.get("connected", False)]):
+                        session["status"] = "completed"
+                        print(f"Session {session_id} marked as completed - all players have finished")
+                        
                     await broadcast_state_update(session_id)
             
             elif action == "set_ready":
@@ -519,12 +526,18 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, player_id: s
                 current_player_data["current_index"] = restaurant_count
                 print(f"Player {player_name} finished early. Setting index to {restaurant_count}.")
                 
+                # Mark player as finished if not already
+                if player_id not in session.get("finished_players", []):
+                    session.setdefault("finished_players", []).append(player_id)
+                    print(f"Player {player_name} has finished all restaurants (early finish)")
+                    
+                    # If this is the first player to finish, update status
+                    if len(session.get("finished_players", [])) == 1 and len(session.get("players", {})) > 1:
+                        session["status"] = "some_players_finished"
+                        print(f"Session {session_id} - waiting for other players to finish")
+                
                 # Check if all players have completed swiping through all restaurants
-                if all(
-                    p.get("current_index", 0) >= len(session.get("restaurants", []))
-                    for p in session.get("players", {}).values()
-                    if p.get("connected", False)  # Only count connected players
-                ):
+                if len(session.get("finished_players", [])) == len([p for p in session.get("players", {}).values() if p.get("connected", False)]):
                     session["status"] = "completed"
                     print(f"Session {session_id} marked as completed - all players have finished")
                 

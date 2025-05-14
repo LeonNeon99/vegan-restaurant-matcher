@@ -1,6 +1,7 @@
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import RestaurantCard from '../components/RestaurantCard';
+import WaitingForPlayersScreen from '../components/WaitingForPlayersScreen';
 import { SessionContext } from '../contexts/SessionContext';
 import { Box, Button, Typography, Container, CircularProgress, Alert, Stack, IconButton, Paper } from '@mui/material';
 import { ArrowBack, ArrowForward, ExitToApp } from '@mui/icons-material';
@@ -29,9 +30,68 @@ export default function MatchPage() {
     }
   }, [contextError]);
 
+  // Render loading state
   if (contextIsLoading && !sessionState) {
-    return <Container sx={{ mt: 5, textAlign: 'center' }}><CircularProgress /><Typography>Loading session...</Typography></Container>;
+    return (
+      <Container sx={{ mt: 5, textAlign: 'center' }}>
+        <CircularProgress />
+        <Typography>Loading session...</Typography>
+      </Container>
+    );
   }
+  
+  // Track if current player has finished
+  const currentPlayerFinished = useMemo(() => {
+    if (!sessionState?.players?.[playerId] || !sessionState?.restaurants) return false;
+    return sessionState.players[playerId].current_index >= sessionState.restaurants.length;
+  }, [sessionState, playerId]);
+
+  // Extract player names and their likes/superlikes for the results page
+  const { player1Likes, player2Likes } = useMemo(() => {
+    if (!sessionState?.players || !sessionState.matches) {
+      return { player1Likes: [], player2Likes: [] };
+    }
+    const player1Id = Object.keys(sessionState.players)[0];
+    const player2Id = Object.keys(sessionState.players)[1];
+    const player1Likes = sessionState.matches[player1Id]?.likes || [];
+    const player2Likes = sessionState.matches[player2Id]?.likes || [];
+    return { player1Likes, player2Likes };
+  }, [sessionState]);
+
+  // Track if all players have finished
+  const allPlayersFinished = useMemo(() => {
+    // In single player mode, just check if current player is finished
+    if (!sessionState?.players || Object.keys(sessionState.players).length <= 1) {
+      return currentPlayerFinished;
+    }
+    
+    // Check if session is marked as completed
+    if (sessionState.status === 'completed') return true;
+    
+    // Check if all players have reached the end of the list
+    return Object.values(sessionState.players).every(
+      player => player.current_index >= sessionState.restaurants.length
+    );
+  }, [sessionState, currentPlayerFinished]);
+  
+  // Check if we should show the waiting screen
+  const isWaitingForOtherPlayers = useMemo(() => {
+    // In single player mode, never show waiting screen
+    if (!sessionState?.players || Object.keys(sessionState.players).length <= 1) return false;
+    
+    // Show waiting if current player has finished but others haven't
+    return currentPlayerFinished && !allPlayersFinished;
+  }, [sessionState, currentPlayerFinished, allPlayersFinished]);
+  
+  // Show waiting screen if needed
+  if (isWaitingForOtherPlayers) {
+    return <WaitingForPlayersScreen />;
+  }
+
+  if (isWaitingForOtherPlayers) {
+    return <WaitingForPlayersScreen />;
+  }
+
   if (contextError) {
     return (
       <Container sx={{ mt: 5, textAlign: 'center' }}>
@@ -163,18 +223,33 @@ export default function MatchPage() {
   // Check if it's this player's turn (for turn-based mode)
   const isMyTurn = mode === 'freeform' || current_turn_player_id === playerId || !current_turn_player_id;
 
-  // Add handleFinishEarly function
+  // Handle finish early button click
   const handleFinishEarly = () => {
     try {
       if (finishEarly) {
+        // In multiplayer, notify server that we're finishing early
+        if (sessionState?.players && Object.keys(sessionState.players).length > 1) {
+          // Update local state immediately for better UX
+          const restaurantCount = sessionState.restaurants?.length || 0;
+          sessionState.players[playerId].current_index = restaurantCount;
+          
+          // Notify server
+          if (sendMessage) {
+            sendMessage({
+              action: "finish_early"
+            });
+          }
+        }
+        
+        // Call the original finishEarly function
         finishEarly();
       } else {
         console.warn('finishEarly function is not available');
-        // If finishEarly is not available, try to proceed to results
+        // Fallback for single player or error case
         if (sessionState?.status === 'completed') {
-          // Already completed, do nothing
-          return;
+          return; // Already completed, do nothing
         }
+        
         // Force update to show results if possible
         const ids1 = new Set(player1Likes?.map(b => b.id) || []);
         const mutual = player2Likes?.filter(b => ids1.has(b.id)) || [];
