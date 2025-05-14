@@ -154,6 +154,107 @@ const SessionActiveDisplay = () => {
   }
 }
 
+// Single player version of MatchPage with the new styling
+const SinglePlayerMatchPage = ({ 
+    restaurants, 
+    isLoading, 
+    error, 
+    onLike, 
+    onDislike, 
+    onSuperlike, 
+    isSuperliked, 
+    otherPlayerSuperlikeIds, 
+    currentIdx, 
+    player,
+    onFinish, 
+    onRestart 
+}) => {
+    if (isLoading) {
+        return <Container sx={{ mt: 5, textAlign: 'center' }}><CircularProgress /><Typography>Loading restaurants...</Typography></Container>;
+    }
+    if (error) {
+        return (
+            <Container sx={{ mt: 5, textAlign: 'center' }}>
+                <Alert severity="error">Error: {error}</Alert>
+                <Button onClick={onRestart} sx={{mt:2}}>Start Over</Button>
+            </Container>
+        );
+    }
+    if (!restaurants || restaurants.length === 0) {
+        return <Container sx={{ mt: 5, textAlign: 'center' }}><Typography>No restaurants found. Please try different search criteria.</Typography></Container>;
+    }
+    if (currentIdx >= restaurants.length) {
+        return (
+            <Container sx={{mt:5, textAlign: 'center'}}>
+                <Typography variant="h5">All restaurants viewed!</Typography>
+                <CircularProgress sx={{my:2}}/>
+                <Button variant="contained" color="primary" onClick={onFinish} sx={{mt: 2}}>
+                    Finish
+                </Button>
+            </Container>
+        );
+    }
+
+    const currentRestaurant = restaurants[currentIdx];
+    
+    const handleSwipe = (decision) => {
+        if (decision === 'like') onLike(currentRestaurant.id);
+        else if (decision === 'dislike') onDislike();
+        else if (decision === 'superlike') onSuperlike(currentRestaurant.id);
+    };
+
+    return (
+        <Container maxWidth="sm" sx={{ 
+            py: {xs:1, sm:2}, 
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'center', 
+            minHeight: 'calc(100vh - 64px)',
+            backgroundColor: '#f5f5f5',
+            borderRadius: 2,
+            my: 2,
+            boxShadow: 3
+        }}>
+            <Paper elevation={2} sx={{
+                p:2, 
+                mb:2, 
+                width: '100%', 
+                textAlign: 'center',
+                backgroundColor: '#ffffff'
+            }}>
+                <Typography variant="h6" color="primary.dark" fontWeight="bold">
+                    {player} (Restaurant {currentIdx + 1} of {restaurants.length})
+                </Typography>
+            </Paper>
+
+            <RestaurantCard
+                restaurant={currentRestaurant}
+                onLike={() => handleSwipe('like')}
+                onDislike={() => handleSwipe('dislike')}
+                onSuperlike={() => handleSwipe('superlike')}
+                isSuperliked={isSuperliked(currentRestaurant.id)}
+                otherPlayerSuperlikeIds={otherPlayerSuperlikeIds}
+            />
+
+            <Stack direction="row" spacing={2} sx={{ mt: 2, width: '100%', justifyContent: 'center' }}>
+                <Button variant="contained" color="error" onClick={() => handleSwipe('dislike')} sx={{ flexGrow: 1, py:1.5}}>
+                    Pass
+                </Button>
+                <Button variant="contained" color="success" onClick={() => handleSwipe('like')} sx={{ flexGrow: 1, py:1.5}}>
+                    Like
+                </Button>
+                <Button variant="contained" color="warning" onClick={() => handleSwipe('superlike')} sx={{ flexGrow: 1, py:1.5}}>
+                    Superlike
+                </Button>
+            </Stack>
+
+            <Button variant="contained" color="primary" onClick={onRestart} sx={{mt: 3}}>
+                Start Over
+            </Button>
+        </Container>
+    );
+};
+
 // Placeholder for the original single-player flow if you want to keep it accessible
 // This would re-introduce the old state management from App.jsx here.
 const OriginalSetupAndFlow = () => {
@@ -253,11 +354,20 @@ const OriginalSetupAndFlow = () => {
         const otherPlayerSuperlikeIds = matchingPlayer === 1 
             ? new Set(player2Superlikes.map(r => r.id)) 
             : new Set(player1Superlikes.map(r => r.id));
-        return <MatchPage restaurants={restaurants} isLoading={loadingRestaurants} error={fetchError}
-                        onLike={handleLike} onDislike={handleDislike} onSuperlike={handleSuperlike}
-                        isSuperliked={isRestaurantSuperliked} otherPlayerSuperlikeIds={otherPlayerSuperlikeIds}
-                        currentIdx={currentIdx} player={matchingPlayer === 1 ? player1 : player2}
-                        onFinish={handleFinish} onRestart={handleRestart} />;
+        return <SinglePlayerMatchPage 
+                    restaurants={restaurants} 
+                    isLoading={loadingRestaurants} 
+                    error={fetchError}
+                    onLike={handleLike} 
+                    onDislike={handleDislike} 
+                    onSuperlike={handleSuperlike}
+                    isSuperliked={isRestaurantSuperliked} 
+                    otherPlayerSuperlikeIds={otherPlayerSuperlikeIds}
+                    currentIdx={currentIdx} 
+                    player={matchingPlayer === 1 ? player1 : player2}
+                    onFinish={handleFinish} 
+                    onRestart={handleRestart} 
+                />;
     }
     if (stage === 'results') return <ResultsPage matches={mutualLikes} onRestart={handleRestart} player1Superlikes={player1Superlikes} player2Superlikes={player2Superlikes}/>;
     return null;
