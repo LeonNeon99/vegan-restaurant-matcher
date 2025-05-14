@@ -143,7 +143,9 @@ const SessionActiveDisplay = () => {
     case 'waiting_for_players':
       return <WaitingRoomPage />;
     case 'active':
+    case 'some_players_finished': // Treat 'some_players_finished' the same as 'active' for routing
         // Use the MatchPage component with data from sessionState
+        // The MatchPage component will handle showing the waiting screen if needed
         return <MatchPage />;
     case 'completed':
         // Use the proper ResultsPage component
