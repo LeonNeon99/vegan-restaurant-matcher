@@ -382,6 +382,11 @@ async def get_restaurant_details(business_id: str):
 async def create_new_session(request: CreateSessionRequest, background_tasks: BackgroundTasks):
     session_id, host_player_id = create_session(request)
     
+    # Make sure the player has current_index set to 0
+    session = get_session(session_id)
+    if session and session["players"].get(host_player_id):
+        session["players"][host_player_id]["current_index"] = 0
+    
     # Fetch restaurants in the background
     background_tasks.add_task(fetch_restaurants_for_session, session_id)
     
@@ -408,7 +413,8 @@ async def join_existing_session(session_id: str, request: JoinSessionRequest):
         id=new_player_id,
         name=request.player_name,
         is_host=False,
-        connected=False
+        connected=False,
+        current_index=0  # Explicitly set starting index to 0
     )
     # current_players[new_player_id] = new_player_model.model_dump(by_alias=True) # Pydantic v2
     current_players[new_player_id] = new_player_model.dict(by_alias=True) # Pydantic v1
