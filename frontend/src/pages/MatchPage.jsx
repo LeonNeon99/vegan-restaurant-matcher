@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import RestaurantCard from '../components/RestaurantCard';
 import { SessionContext } from '../contexts/SessionContext';
 import { Box, Button, Typography, Container, CircularProgress, Alert, Stack, IconButton, Paper } from '@mui/material';
-import { ArrowBack, ArrowForward, ExitToApp, DoneAll } from '@mui/icons-material';
+import { ArrowBack, ArrowForward, ExitToApp } from '@mui/icons-material';
 
 // MatchPage now primarily consumes SessionContext
 export default function MatchPage() {
@@ -14,8 +14,7 @@ export default function MatchPage() {
     clearSessionData,
     isLoading: contextIsLoading, // Renamed to avoid conflict if any local loading state is needed
     error: contextError,
-    playerName, // Player's own name from context
-    sendWebSocketMessage
+    playerName // Player's own name from context
   } = useContext(SessionContext);
   const navigate = useNavigate();
 
@@ -101,22 +100,6 @@ export default function MatchPage() {
     clearSessionData();
     navigate('/');
   };
-  
-  const handleFinishEarly = () => {
-    // Mark all remaining restaurants as "dislike" to finish early
-    const remainingCount = restaurants.length - currentIndex;
-    
-    // First send a message indicating player is finishing early (for UI updates)
-    sendWebSocketMessage({
-      action: "finish_early",
-      remaining_count: remainingCount
-    });
-    
-    // Then actually handle all the remaining swipes as dislikes
-    for (let i = currentIndex; i < restaurants.length; i++) {
-      swipe(restaurants[i].id, 'dislike');
-    }
-  };
 
   // Determine if current player has superliked this card
   const isSuperlikedByCurrentUser = (
@@ -166,56 +149,20 @@ export default function MatchPage() {
       )}
 
       <Stack direction="row" spacing={2} sx={{ mt: 2, width: '100%', justifyContent: 'center' }}>
-        <Button 
-          variant="outlined" 
-          color="error" 
-          onClick={() => handleSwipe('dislike')} 
-          disabled={!isMyTurn || !currentRestaurant} 
-          sx={{ flexGrow: 1, py:1.5}}
-        >
+        <Button variant="outlined" color="error" onClick={() => handleSwipe('dislike')} disabled={!isMyTurn || !currentRestaurant} sx={{ flexGrow: 1, py:1.5}}>
           Pass
         </Button>
-        <Button 
-          variant="contained" 
-          color="success" 
-          onClick={() => handleSwipe('like')} 
-          disabled={!isMyTurn || !currentRestaurant} 
-          sx={{ flexGrow: 1, py:1.5}}
-        >
+        <Button variant="contained" color="success" onClick={() => handleSwipe('like')} disabled={!isMyTurn || !currentRestaurant} sx={{ flexGrow: 1, py:1.5}}>
           Like
         </Button>
-        <Button 
-          variant="contained" 
-          color="warning" 
-          onClick={() => handleSwipe('superlike')} 
-          disabled={!isMyTurn || !currentRestaurant || isSuperlikedByCurrentUser} 
-          sx={{ flexGrow: 1, py:1.5}}
-        >
+        <Button variant="contained" color="warning" onClick={() => handleSwipe('superlike')} disabled={!isMyTurn || !currentRestaurant || isSuperlikedByCurrentUser} sx={{ flexGrow: 1, py:1.5}}>
           Superlike
         </Button>
       </Stack>
-      
-      <Stack direction="row" spacing={2} sx={{ mt: 2, width: '100%', justifyContent: 'center' }}>
-        <Button 
-          variant="outlined"
-          onClick={handleFinishEarly} 
-          disabled={!isMyTurn || !currentRestaurant}
-          sx={{ flexGrow: 1 }}
-          startIcon={<DoneAll />}
-        >
-          Finish Early
-        </Button>
-        
-        <Button 
-          variant="outlined" 
-          color="error"
-          onClick={handleLeaveSession} 
-          sx={{ flexGrow: 1 }}
-          startIcon={<ExitToApp />}
-        >
-          Leave Session
-        </Button>
-      </Stack>
+
+      <Button variant="outlined" onClick={handleLeaveSession} sx={{mt: 3}} startIcon={<ExitToApp />}>
+        Leave Session
+      </Button>
     </Container>
   );
 }

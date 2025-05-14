@@ -94,24 +94,14 @@ function RestaurantCard({
       badgeContent={badgeContent}
       invisible={!badgeContent}
       anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
-      sx={{ 
-        width: '100%',
-        '& .MuiBadge-badge': {
-          transform: 'scale(1.2) translate(-50%, -50%)',
-          padding: '8px',
-          borderRadius: '50%',
-          background: 'white'
-        }
-      }}
+      sx={{ width: '100%' }}
     >
       <Card sx={{
         width: '100%',
-        borderRadius: 2,
+        borderRadius: 3,
         boxShadow: 3,
-        border: (isSuperliked || superlikedByCurrentUser) ? '3px solid #FF8C00' : (isMatched && likedByCurrentUser ? '3px solid #2E7D32' : '1px solid #ddd'),
-        backgroundColor: isMatched ? '#f0fff0' : '#FFFFFF',
-        overflow: 'hidden',
-        transition: 'all 0.3s ease'
+        border: (isSuperliked || superlikedByCurrentUser) ? '2px solid orange' : (isMatched && likedByCurrentUser ? '2px solid green' : '1px solid #ddd'),
+        backgroundColor: isMatched ? '#f0fff0' : 'inherit'
       }}>
         <CardMedia
           component="img"
@@ -120,81 +110,55 @@ function RestaurantCard({
           alt={restaurant.name}
           sx={{ objectFit: 'cover' }}
         />
-        <CardContent sx={{pb: 1, backgroundColor: '#FFFFFF'}}>
-          <Typography gutterBottom variant="h5" component="div" noWrap sx={{ fontWeight: 'bold', color: '#1A237E', letterSpacing: '-0.01em' }}>
+        <CardContent sx={{pb:0}}>
+          <Typography gutterBottom variant="h5" component="div">
             {restaurant.name}
           </Typography>
-          <Typography variant="body2" color="#555555" sx={{mb: 1, height: '2.5em', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', fontWeight: 500}}
+          <Typography variant="body2" color="text.secondary" sx={{minHeight: '2.5em', mb: 0.5}}
           >
             {restaurant.categories?.map(c => c.title).join(', ')}
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', my: 0.5 }}>
-            <LocationOn fontSize="small" sx={{ mr: 0.5, color: '#E91E63' }} />
-            <Typography variant="body2" color="#333333" noWrap sx={{ maxWidth: '95%', fontWeight: 500 }}>
+            <LocationOn fontSize="small" sx={{ mr: 0.5 }} />
+            <Typography variant="body2" color="text.secondary">
               {restaurant.location?.display_address?.join(', ') || 'Address not available'}
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', mb:1 }}>
             <Rating name={`rating-${restaurant.id}`} value={restaurant.rating || 0} precision={0.5} readOnly size="small" sx={{mr:0.5}}/>
-            <Typography variant="body2" color="#555555" sx={{fontWeight: 500}}>
-              ({restaurant.review_count || 0} reviews) {restaurant.price && <span style={{fontWeight: 'bold', color: '#1A237E'}}>{restaurant.price}</span>}
+            <Typography variant="body2" color="text.secondary">
+              ({restaurant.review_count || 0} reviews) - {restaurant.price || 'N/A'}
             </Typography>
           </Box>
         </CardContent>
         
         {!isMatched && onLike && (
-            <CardActions sx={{ display: 'flex', justifyContent: 'space-around', pt:0, pb:1, backgroundColor: '#FFFFFF' }}>
-              <IconButton onClick={onDislike} color="error" disabled={disabled} sx={{
-                border: '2px solid', 
-                borderColor: '#f44336', 
-                p:1,
-                '&:hover': { backgroundColor: '#ffebee', transform: 'scale(1.05)' },
-                transition: 'all 0.2s'
-              }}><RestaurantMenu sx={{transform: 'rotate(135deg)'}} /></IconButton>
-              <IconButton onClick={onSuperlike} color="warning" disabled={disabled || isSuperliked} sx={{
-                border: '2px solid', 
-                borderColor: '#ff9800', 
-                p:1,
-                '&:hover': { backgroundColor: '#fff8e1', transform: 'scale(1.05)' },
-                transition: 'all 0.2s'
-              }}><Star /></IconButton>
-              <IconButton onClick={onLike} color="success" disabled={disabled} sx={{
-                border: '2px solid', 
-                borderColor: '#4caf50', 
-                p:1,
-                '&:hover': { backgroundColor: '#e8f5e9', transform: 'scale(1.05)' },
-                transition: 'all 0.2s'
-              }}><Favorite /></IconButton>
+            <CardActions sx={{ display: 'flex', justifyContent: 'space-around', pt:0, pb:1 }}>
+              <IconButton onClick={onDislike} color="error" disabled={disabled} sx={{border: '1px solid', borderColor: 'error.light', p:1}}><RestaurantMenu sx={{transform: 'rotate(135deg)'}} /> </IconButton>
+              <IconButton onClick={onSuperlike} color="warning" disabled={disabled || isSuperliked} sx={{border: '1px solid', borderColor: 'warning.light', p:1}}><Star /></IconButton>
+              <IconButton onClick={onLike} color="success" disabled={disabled} sx={{border: '1px solid', borderColor: 'success.light', p:1}}><Favorite /></IconButton>
             </CardActions>
         )}
         
-        <CardActions sx={{ justifyContent: 'flex-start', pt:0, pl:1, pb: 1, backgroundColor: '#FFFFFF' }}>
-            <Button
+        <CardActions sx={{ justifyContent: 'flex-start', pt:0, pl:1, pb: isMatched && !expanded ? 1 : (isMatched && expanded ? 0 : (!isMatched && !expanded ? 0 : 0) ) }}>
+            <ExpandMore
+                expand={expanded}
                 onClick={handleExpandClick}
                 aria-expanded={expanded}
                 aria-label="show more"
-                sx={{
-                  color: '#1976d2',
-                  fontWeight: 'bold',
-                  display: 'flex',
-                  alignItems: 'center',
-                  '&:hover': { backgroundColor: '#e3f2fd' },
-                  transition: 'all 0.2s'
-                }}
             >
-                <InfoIcon sx={{mr: 0.5}} />
-                {expanded? "Hide Details" : "View Details"}
-            </Button>
+                <InfoIcon /><Typography variant="caption" sx={{ml:0.5}}>{expanded? "Hide" : "Details"}</Typography>
+            </ExpandMore>
         </CardActions>
 
         <Collapse in={expanded} timeout="auto" unmountOnExit>
-          <CardContent sx={{pt:0, backgroundColor: '#f9f9f9'}}>
+          <CardContent sx={{pt:0}}>
             {loadingDetails && <Box sx={{display:'flex', justifyContent:'center'}}><CircularProgress size={24} /></Box>}
             {errorDetails && <Alert severity="error" sx={{mb:1}}>{errorDetails}</Alert>}
             {details && (
               <Box>
                 {details.coordinates?.latitude && details.coordinates?.longitude && (
-                  <Box sx={{ height: '200px', width: '100%', my: 2, borderRadius: 2, overflow:'hidden', border: '1px solid #dddddd' }}>
+                  <Box sx={{ height: '200px', width: '100%', my: 2, borderRadius: 1, overflow:'hidden' }}>
                     <Map
                       defaultCenter={{ lat: details.coordinates.latitude, lng: details.coordinates.longitude }}
                       defaultZoom={15}
@@ -209,26 +173,26 @@ function RestaurantCard({
                   </Box>
                 )}
                 {details.phone && (
-                  <Typography variant="body2" sx={{display: 'flex', alignItems: 'center', mb:1, color: '#333333', fontWeight: 500}}>
-                    <Phone sx={{mr:1, color: '#1976d2'}} fontSize="small"/> {details.display_phone || details.phone}
+                  <Typography variant="body2" sx={{display: 'flex', alignItems: 'center', mb:1}}>
+                    <Phone sx={{mr:1}} fontSize="small"/> {details.display_phone || details.phone}
                   </Typography>)
                 }
                 {details.url && (
-                  <Button startIcon={<Launch color="primary"/>} href={details.url} target="_blank" rel="noopener noreferrer" sx={{mb:1, p:0, justifyContent:'flex-start', fontWeight: 'bold'}} size="small">
+                  <Button startIcon={<Launch/>} href={details.url} target="_blank" rel="noopener noreferrer" sx={{mb:1, p:0, justifyContent:'flex-start'}} size="small">
                     View on Yelp
                   </Button>)
                 }
                 {details.hours && details.hours[0]?.open && (
-                  <Box sx={{my:1, backgroundColor: '#FFFFFF', p: 1, borderRadius: 1, boxShadow: '0 1px 3px rgba(0,0,0,0.1)'}}>
+                  <Box sx={{my:1}}>
                      <Box 
                          onClick={() => setHoursExpandedLocal(!hoursExpandedLocal)}
-                         sx={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #eee', py: 0.5}}
+                         sx={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid #eee', borderBottom: '1px solid #eee', py: 0.5, my: 0.5}}
                        >
-                        <Typography variant="subtitle2" sx={{display: 'flex', alignItems: 'center', fontWeight: 'bold', color: '#333333'}}><AccessTime sx={{mr:1, color: '#1976d2'}}/>Hours</Typography>
-                        {hoursExpandedLocal ? <ExpandLessIcon color="primary" /> : <ExpandMoreIconMUI color="primary" />}
+                        <Typography variant="subtitle2" sx={{display: 'flex', alignItems: 'center'}}><AccessTime sx={{mr:1}}/>Hours</Typography>
+                        {hoursExpandedLocal ? <ExpandLessIcon /> : <ExpandMoreIconMUI />}
                     </Box>
                     {details.hours[0].is_open_now !== undefined && (
-                         <Typography variant="body2" sx={{ color: details.hours[0].is_open_now ? '#2E7D32' : '#D32F2F', fontWeight: 'bold', mb: 0.5, mt:0.5 }}>
+                         <Typography variant="body2" sx={{ color: details.hours[0].is_open_now ? 'green' : 'red', fontWeight: 'bold', mb: 0.5, mt:0.5 }}>
                            {details.hours[0].is_open_now ? 'Open now' : 'Closed now'}
                          </Typography>
                     )}
@@ -237,7 +201,7 @@ function RestaurantCard({
                           {formattedHoursLines.map((line, idx) => (
                             <ListItem key={idx} sx={{pl:0, py:0.1}}>
                               <ListItemText disableTypography
-                                primary={<Typography variant="body2" sx={{color: '#333333'}}><strong>{line.day}:</strong> {line.time}</Typography>}
+                                primary={<Typography variant="body2">{line.day}: {line.time}</Typography>}
                               />
                             </ListItem>
                           ))}
@@ -246,29 +210,29 @@ function RestaurantCard({
                   </Box>
                 )}
                 {details.photos && details.photos.length > 0 && (
-                  <Box sx={{my:2, backgroundColor: '#FFFFFF', p: 1, borderRadius: 1, boxShadow: '0 1px 3px rgba(0,0,0,0.1)'}}>
-                    <Typography variant="subtitle2" sx={{display: 'flex', alignItems: 'center', mb:1, fontWeight: 'bold', color: '#333333'}}><PhotoCamera sx={{mr:1, color: '#1976d2'}}/>Photos:</Typography>
+                  <Box sx={{my:2}}>
+                    <Typography variant="subtitle2" sx={{display: 'flex', alignItems: 'center', mb:1}}><PhotoCamera sx={{mr:1}}/>Photos:</Typography>
                     <ImageList sx={{ width: '100%', height: 'auto', m:0 }} cols={3} rowHeight={100} gap={4}>
                       {details.photos.map((photo, idx) => (
                         <ImageListItem key={idx}>
-                           <img src={photo} alt={`Restaurant photo ${idx + 1}`} style={{ width: '100%', height: '100px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #dddddd' }} loading="lazy"/>
+                           <img src={photo} alt={`Restaurant photo ${idx + 1}`} style={{ width: '100%', height: '100px', objectFit: 'cover', borderRadius: '4px' }} loading="lazy"/>
                         </ImageListItem>
                       ))}
                     </ImageList>
                   </Box>
                 )}
                 {details.reviews && details.reviews.length > 0 && (
-                  <Box sx={{my:2, backgroundColor: '#FFFFFF', p: 1, borderRadius: 1, boxShadow: '0 1px 3px rgba(0,0,0,0.1)'}}>
-                    <Typography variant="subtitle2" sx={{display: 'flex', alignItems: 'center', mb:1, fontWeight: 'bold', color: '#333333'}}><Reviews sx={{mr:1, color: '#1976d2'}}/>Reviews:</Typography>
+                  <Box sx={{my:2}}>
+                    <Typography variant="subtitle2" sx={{display: 'flex', alignItems: 'center', mb:1}}><Reviews sx={{mr:1}}/>Reviews:</Typography>
                     {details.reviews.slice(0,2).map((review) => (
-                      <Paper key={review.id} sx={{p:1, mb:1, bgcolor: '#f5f5f5', border: '1px solid #eeeeee'}} elevation={0}>
+                      <Paper key={review.id} sx={{p:1, mb:1, bgcolor: 'grey.50'}} elevation={0}>
                           <Box sx={{display:'flex', alignItems: 'center', mb:0.5}}>
                             <Avatar src={review.user.image_url} sx={{width: 24, height: 24, mr:1}}/> 
-                            <Typography variant="caption" fontWeight="bold" color="#333333">{review.user.name}</Typography>
+                            <Typography variant="caption" fontWeight="bold">{review.user.name}</Typography>
                           </Box>
                           <Rating name={`review-rating-${review.id}`} value={review.rating || 0} readOnly size="small"/>
-                          <Typography variant="caption" display="block" sx={{maxHeight: '3em', overflow: 'hidden', textOverflow: 'ellipsis', color: '#333333'}}>{review.text}</Typography>
-                          <Typography variant="caption" color="#666666" display="block">{new Date(review.time_created).toLocaleDateString()}</Typography>
+                          <Typography variant="caption" display="block" sx={{maxHeight: '3em', overflow: 'hidden', textOverflow: 'ellipsis'}}>{review.text}</Typography>
+                          <Typography variant="caption" color="textSecondary" display="block">{new Date(review.time_created).toLocaleDateString()}</Typography>
                       </Paper>
                     ))}
                   </Box>
@@ -277,9 +241,9 @@ function RestaurantCard({
             )}
 
             {showMatchDetails && (
-              <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #eee', backgroundColor: '#FFFFFF', p: 1, borderRadius: 1, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-                <Typography variant="subtitle1" gutterBottom sx={{display: 'flex', alignItems: 'center', color: '#333333', fontWeight: 'bold'}}>
-                  <PeopleAlt sx={{ mr: 1, color: '#1976d2' }} /> Agreed By:
+              <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #eee' }}>
+                <Typography variant="subtitle1" gutterBottom sx={{display: 'flex', alignItems: 'center'}}>
+                  <PeopleAlt sx={{ mr: 1 }} /> Agreed By:
                 </Typography>
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                   {allLikers.filter(player => player && player.id && player.name).map((player) => {

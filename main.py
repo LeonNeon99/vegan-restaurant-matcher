@@ -125,7 +125,7 @@ async def fetch_restaurants_for_session(session_id: str):
         "longitude": session["setup"]["lng"],
         "radius": min(session["setup"]["radius"], 40000),
         "categories": "vegan,vegetarian",
-        "limit": 20, # Max limit reduced to 20 from 50
+        "limit": 50, # Max limit by Yelp
         "sort_by": session["setup"]["sort_by"] or "best_match",
     }
     if session["setup"]["price"]:
@@ -142,9 +142,6 @@ async def fetch_restaurants_for_session(session_id: str):
                 min_r = session["setup"]["min_rating"]
                 fetched_restaurants = [r for r in fetched_restaurants if r.get("rating", 0) >= min_r]
 
-            # Limit to 20 restaurants at most
-            fetched_restaurants = fetched_restaurants[:20]
-            
             session["restaurants"] = fetched_restaurants
             # Avoid changing status here directly if it might cause race conditions with player joining
             # Status change could be tied to host action or all players ready
@@ -438,12 +435,6 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, player_id: s
     player_name = current_player_data.get("name", "Unknown")
     print(f"Player {player_id} ({player_name}) connected to session {session_id}")
     
-    # Auto-start sessions with only one player (singleplayer mode)
-    if len(session.get("players", {})) == 1 and session.get("status") == "waiting_for_players" and len(session.get("restaurants", [])) > 0:
-        current_player_data["ready"] = True
-        session["status"] = "active"
-        print(f"Auto-starting single player session {session_id}")
-    
     await broadcast_state_update(session_id)
 
     try:
@@ -482,25 +473,16 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, player_id: s
                     current_player_data["current_index"] = current_player_data.get("current_index", 0) + 1
                     
                     # Check if all players have completed swiping through all restaurants
-                    # Only count connected players in the completion check
-                    connected_players = [p for p in session.get("players", {}).values() if p.get("connected", False)]
-                    all_players_finished = True
-                    for p in connected_players:
-                        if p.get("current_index", 0) < len(session.get("restaurants", [])):
-                            all_players_finished = False
-                            break
-                    
-                    if all_players_finished and connected_players:
+                    if all(
+                        p.get("current_index", 0) >= len(session.get("restaurants", []))
+                        for p in session.get("players", {}).values()
+                        if p.get("connected", False)  # Only count connected players
+                    ):
                         session["status"] = "completed"
                         print(f"Session {session_id} marked as completed - all players have swiped through all restaurants")
                     
                     await broadcast_state_update(session_id)
             
-            elif action == "finish_early":
-                # Player wants to finish early - they'll be auto-swiping the remaining restaurants
-                print(f"Player {player_name} is finishing early, skipping {data.get('remaining_count', 0)} restaurants")
-                # No special backend handling needed - the frontend will send individual swipes to complete
-                
             elif action == "set_ready":
                 is_ready = data.get("ready", False)
                 current_player_data["ready"] = bool(is_ready)
