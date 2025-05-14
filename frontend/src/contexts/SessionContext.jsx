@@ -177,6 +177,12 @@ export function SessionProvider({ children }) {
     });
   }, [sendWebSocketMessage]);
 
+  const finishEarly = useCallback(() => {
+    sendWebSocketMessage({
+      action: 'finish_early',
+    });
+  }, [sendWebSocketMessage]);
+
   const value = {
     sessionId,
     playerId,
@@ -192,6 +198,7 @@ export function SessionProvider({ children }) {
     sendWebSocketMessage, // Generic sender
     swipe,
     setReadyStatus,
+    finishEarly, // New method to finish early
     clearSessionData, // To logout/leave session
     setSessionIdExternally: setSessionId, // For URL parsing on join
     setPlayerIdExternally: setPlayerId,   // For URL parsing on join

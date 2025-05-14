@@ -11,6 +11,7 @@ export default function MatchPage() {
     sessionState,
     playerId,
     swipe,
+    finishEarly,
     clearSessionData,
     isLoading: contextIsLoading, // Renamed to avoid conflict if any local loading state is needed
     error: contextError,
@@ -73,11 +74,53 @@ export default function MatchPage() {
     // All restaurants swiped by this player
     // Backend should handle this state and potentially change sessionState.status or player.status
     return (
-        <Container sx={{mt:5, textAlign: 'center'}}>
-            <Typography variant="h5">No more restaurants to show for you!</Typography>
-            <Typography>Waiting for other players or results...</Typography>
-            <CircularProgress sx={{my:2}}/>
-            <Button variant="outlined" onClick={handleLeaveSession} sx={{mt: 2}} startIcon={<ExitToApp />}>
+        <Container maxWidth="sm" sx={{ 
+          py: {xs:1, sm:2}, 
+          display: 'flex', 
+          flexDirection: 'column', 
+          alignItems: 'center', 
+          minHeight: 'calc(100vh - 64px)', 
+          backgroundColor: '#f5f5f5',
+          borderRadius: 2,
+          my: 2,
+          boxShadow: 3
+        }}>
+            <Paper elevation={2} sx={{
+              p:2, 
+              mb:2, 
+              width: '100%', 
+              textAlign: 'center',
+              backgroundColor: '#ffffff'
+            }}>
+                <Typography variant="h5" color="primary.dark" fontWeight="bold">
+                    Finished!
+                </Typography>
+            </Paper>
+            
+            <Box sx={{ my: 4, textAlign: 'center' }}>
+                <Typography variant="h6" gutterBottom>You've seen all restaurants</Typography>
+                <Typography variant="body1" sx={{ mb: 3 }}>
+                    Waiting for other players to finish their selections...
+                </Typography>
+                <CircularProgress sx={{my:2}}/>
+                
+                {/* Show which players are still swiping */}
+                <Box sx={{ mt: 3, p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
+                    <Typography variant="subtitle1" fontWeight="medium" gutterBottom>
+                        Players Status:
+                    </Typography>
+                    {Object.values(players).map(player => (
+                        <Typography key={player.id} variant="body2" color={
+                            player.id === playerId ? 'success.main' : 
+                            (player.current_index >= restaurants.length ? 'success.main' : 'warning.main')
+                        }>
+                            {player.name}: {player.current_index >= restaurants.length ? 'Finished' : 'Still swiping'}
+                        </Typography>
+                    ))}
+                </Box>
+            </Box>
+
+            <Button variant="contained" color="primary" onClick={handleLeaveSession} sx={{mt: 3}} startIcon={<ExitToApp />}>
                 Leave Session
             </Button>
         </Container>
@@ -119,6 +162,11 @@ export default function MatchPage() {
   
   // Check if it's this player's turn (for turn-based mode)
   const isMyTurn = mode === 'freeform' || current_turn_player_id === playerId || !current_turn_player_id;
+
+  // Add handleFinishEarly function
+  const handleFinishEarly = () => {
+    finishEarly();
+  };
 
   return (
     <Container maxWidth="sm" sx={{ 
@@ -173,6 +221,12 @@ export default function MatchPage() {
         </Button>
         <Button variant="contained" color="warning" onClick={() => handleSwipe('superlike')} disabled={!isMyTurn || !currentRestaurant || isSuperlikedByCurrentUser} sx={{ flexGrow: 1, py:1.5}}>
           Superlike
+        </Button>
+      </Stack>
+
+      <Stack direction="row" spacing={2} sx={{ mt: 2, width: '100%', justifyContent: 'center' }}>
+        <Button variant="outlined" color="primary" onClick={handleFinishEarly} sx={{ py:1.5, width: '100%' }}>
+          Finish Early
         </Button>
       </Stack>
 

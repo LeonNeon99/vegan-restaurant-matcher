@@ -249,6 +249,12 @@ const SinglePlayerMatchPage = ({
                 </Button>
             </Stack>
 
+            <Stack direction="row" spacing={2} sx={{ mt: 2, width: '100%', justifyContent: 'center' }}>
+                <Button variant="outlined" color="primary" onClick={onFinish} sx={{ py:1.5, width: '100%' }}>
+                    Finish Early
+                </Button>
+            </Stack>
+
             <Button variant="contained" color="primary" onClick={onRestart} sx={{mt: 3}}>
                 Start Over
             </Button>

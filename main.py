@@ -513,6 +513,23 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, player_id: s
                     # Send error about not being host
                     await websocket.send_json({"type": "error", "message": "Only the host can start the session"})
 
+            elif action == "finish_early":
+                # Set player's current_index to the end of restaurants list
+                restaurant_count = len(session.get("restaurants", []))
+                current_player_data["current_index"] = restaurant_count
+                print(f"Player {player_name} finished early. Setting index to {restaurant_count}.")
+                
+                # Check if all players have completed swiping through all restaurants
+                if all(
+                    p.get("current_index", 0) >= len(session.get("restaurants", []))
+                    for p in session.get("players", {}).values()
+                    if p.get("connected", False)  # Only count connected players
+                ):
+                    session["status"] = "completed"
+                    print(f"Session {session_id} marked as completed - all players have finished")
+                
+                await broadcast_state_update(session_id)
+
             # Further actions: e.g., host starts game, advances turn (if turn-based)
 
     except WebSocketDisconnect:
