@@ -75,6 +75,11 @@ const SessionActiveDisplay = () => {
     return <ResultsPage />;
   }
 
+  if (sessionState?.status === "some_players_finished") {
+    // Show waiting screen for players who finished early
+    return <WaitingForPlayersScreen />;
+  }
+
   useEffect(() => {
     // If context has no session/player ID, but URL does, set them in context.
     // This helps re-establish context if user refreshes on a session page or joins via direct link.

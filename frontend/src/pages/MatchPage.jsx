@@ -21,6 +21,7 @@ export default function MatchPage() {
     swipe,
     finishEarly,
     clearSessionData,
+    sendWebSocketMessage, // FIX: Use correct websocket send function
     isLoading: contextIsLoading, // Renamed to avoid conflict if any local loading state is needed
     error: contextError,
     playerName // Player's own name from context
@@ -316,10 +317,14 @@ export default function MatchPage() {
           sessionState.players[playerId].current_index = restaurantCount;
           
           // Notify server
-          if (sendMessage) {
-            sendMessage({
+          if (sendWebSocketMessage) {
+            // Fix ReferenceError: Replace all sendMessage with sendWebSocketMessage
+            sendWebSocketMessage({
               action: "finish_early"
             });
+          } else {
+            // Defensive: fallback for missing function
+            console.warn('sendWebSocketMessage is not defined in context');
           }
           
           // If we're in single player mode, proceed to results immediately
