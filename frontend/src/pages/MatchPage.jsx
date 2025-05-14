@@ -130,9 +130,9 @@ export default function MatchPage() {
       </Container>
     );
   }
-  if (!sessionState || sessionState.status !== 'active') {
-    // This page should only render if session is active. 
-    // SessionActiveDisplay should handle redirection if status is not 'active'.
+  if (!sessionState || (sessionState.status !== 'active' && sessionState.status !== 'some_players_finished')) {
+    // This page should only render if session is active or some players have finished.
+    // SessionActiveDisplay should handle redirection if status is not valid.
     // However, as a fallback or if navigated here directly:
     return <Container sx={{ mt: 5, textAlign: 'center' }}><Typography>Waiting for session to become active...</Typography><CircularProgress sx={{mt:2}}/></Container>;
   }
