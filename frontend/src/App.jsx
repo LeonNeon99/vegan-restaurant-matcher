@@ -332,9 +332,21 @@ const OriginalSetupAndFlow = () => {
     };
     const handleFinish = () => {
         if (matchingPlayer === 1) {
-            setMatchingPlayer(2);
+            // If it's player 1's turn, switch to player 2 (or back to player 1 in single-player)
+            const nextPlayer = player2 ? 2 : 1; // In single-player, we'll use the same player for both turns
+            setMatchingPlayer(nextPlayer);
             setCurrentIdx(0);
+            
+            // If we're in single-player mode and this is the second pass, show results
+            if (!player2 && matchingPlayer === 1) {
+                // This is the second pass in single-player mode
+                const ids1 = new Set(player1Likes.map(b => b.id));
+                const mutual = player2Likes.filter(b => ids1.has(b.id));
+                setMutualLikes(mutual);
+                setStage('results');
+            }
         } else {
+            // For player 2 in two-player mode, show results
             const ids1 = new Set(player1Likes.map(b => b.id));
             const mutual = player2Likes.filter(b => ids1.has(b.id));
             setMutualLikes(mutual);
