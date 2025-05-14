@@ -8,6 +8,13 @@ import { ArrowBack, ArrowForward, ExitToApp } from '@mui/icons-material';
 
 // MatchPage now primarily consumes SessionContext
 export default function MatchPage() {
+  const [stage, setStage] = useState('swiping');
+
+  // Show results UI immediately if stage is 'results'
+  if (stage === 'results') {
+    // You may want to render your results component or UI here. If it's a separate component, import and render it.
+    return <ResultsPage />;
+  }
   const {
     sessionState,
     playerId,

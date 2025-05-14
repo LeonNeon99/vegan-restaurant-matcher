@@ -66,6 +66,15 @@ const SessionActiveDisplay = () => {
   const navigate = useNavigate();
   const params = useParams();
 
+  // Show results if all players are finished (local/singleplayer fix)
+  const allPlayersFinished = sessionState?.players &&
+    Object.values(sessionState.players).every(
+      player => player.current_index >= (sessionState.restaurants?.length || 0)
+    );
+  if (allPlayersFinished) {
+    return <ResultsPage />;
+  }
+
   useEffect(() => {
     // If context has no session/player ID, but URL does, set them in context.
     // This helps re-establish context if user refreshes on a session page or joins via direct link.
