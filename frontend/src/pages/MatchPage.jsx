@@ -89,8 +89,21 @@ export default function MatchPage() {
       const mutual = player2Likes?.filter(b => ids1.has(b.id)) || [];
       setMutualLikes(mutual);
       setStage('results');
+      return;
     }
-  }, [sessionState?.status, stage, player1Likes, player2Likes]);
+
+    // --- LOCAL/SINGLE-PLAYER LOGIC: if both players are finished, show results even if status isn't 'completed' ---
+    if (
+      sessionState?.players &&
+      Object.values(sessionState.players).every(player => player.current_index >= sessionState.restaurants.length)
+      && stage !== 'results'
+    ) {
+      const ids1 = new Set(player1Likes?.map(b => b.id) || []);
+      const mutual = player2Likes?.filter(b => ids1.has(b.id)) || [];
+      setMutualLikes(mutual);
+      setStage('results');
+    }
+  }, [sessionState?.status, stage, player1Likes, player2Likes, sessionState?.players, sessionState?.restaurants?.length]);
   
   // Handle finish early in multiplayer mode
   useEffect(() => {
