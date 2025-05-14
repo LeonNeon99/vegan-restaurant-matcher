@@ -18,8 +18,6 @@ export default function MatchPage() {
     playerName // Player's own name from context
   } = useContext(SessionContext);
   const navigate = useNavigate();
-  
-  console.log("MatchPage rendering", { playerId, playerName, currentIndex: sessionState?.players?.[playerId]?.current_index });
 
   // Local state for card animation or effects, if any (optional)
   // const [animation, setAnimation] = useState('');

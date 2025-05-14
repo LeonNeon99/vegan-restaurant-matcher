@@ -27,7 +27,7 @@ function HomePage() {
           <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 2 }}>
             <Button
               component={RouterLink}
-              to="/create-session"
+              to="/single-player-setup"
               variant="contained"
               color="primary"
               fullWidth
