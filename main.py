@@ -146,15 +146,8 @@ async def fetch_restaurants_for_session(session_id: str):
             fetched_restaurants = fetched_restaurants[:20]
             
             session["restaurants"] = fetched_restaurants
-            
-            # Auto-activate session if only 1 player (singleplayer mode)
-            if len(session.get("players", {})) == 1 and session.get("status") == "waiting_for_players":
-                print(f"Auto-activating single player session {session_id} after fetching restaurants")
-                session["status"] = "active"
-                # Set player ready
-                for player_id in session["players"]:
-                    session["players"][player_id]["ready"] = True
-            
+            # Avoid changing status here directly if it might cause race conditions with player joining
+            # Status change could be tied to host action or all players ready
             print(f"Restaurants fetched for session {session_id}. Count: {len(fetched_restaurants)}")
             await broadcast_state_update(session_id) # Notify that restaurants are loaded
 
