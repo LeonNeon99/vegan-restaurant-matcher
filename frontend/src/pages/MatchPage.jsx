@@ -74,13 +74,43 @@ export default function MatchPage() {
     );
   }, [sessionState, currentPlayerFinished]);
   
+  // Handle the session status
+  useEffect(() => {
+    // If we're in the waiting state, no need to do anything special
+    // The waiting screen will be shown by the isWaitingForOtherPlayers check
+    if (sessionState?.status === 'some_players_finished') {
+      return;
+    }
+    
+    // If session is completed, show results if not already showing
+    if (sessionState?.status === 'completed' && stage !== 'results') {
+      // Calculate mutual likes when all players have finished
+      const ids1 = new Set(player1Likes?.map(b => b.id) || []);
+      const mutual = player2Likes?.filter(b => ids1.has(b.id)) || [];
+      setMutualLikes(mutual);
+      setStage('results');
+    }
+  }, [sessionState?.status, stage, player1Likes, player2Likes]);
+  
+  // Handle finish early in multiplayer mode
+  useEffect(() => {
+    if (sessionState?.status === 'some_players_finished' && currentPlayerFinished) {
+      // If we reach here, it means we're in multiplayer and the current player has finished
+      // The waiting screen will be shown by the isWaitingForOtherPlayers check
+      return;
+    }
+  }, [sessionState?.status, currentPlayerFinished]);
+  
   // Check if we should show the waiting screen
   const isWaitingForOtherPlayers = useMemo(() => {
     // In single player mode, never show waiting screen
     if (!sessionState?.players || Object.keys(sessionState.players).length <= 1) return false;
     
     // Show waiting if current player has finished but others haven't
-    return currentPlayerFinished && !allPlayersFinished;
+    const shouldWait = currentPlayerFinished && 
+                     (sessionState.status === 'some_players_finished' || !allPlayersFinished);
+    
+    return shouldWait;
   }, [sessionState, currentPlayerFinished, allPlayersFinished]);
   
   // Show waiting screen if needed
@@ -239,13 +269,21 @@ export default function MatchPage() {
               action: "finish_early"
             });
           }
+          
+          // If we're in single player mode, proceed to results immediately
+          if (Object.keys(sessionState.players).length === 1) {
+            const ids1 = new Set(player1Likes?.map(b => b.id) || []);
+            const mutual = player2Likes?.filter(b => ids1.has(b.id)) || [];
+            setMutualLikes(mutual);
+            setStage('results');
+          }
+        } else {
+          // Single player mode - just call finishEarly
+          finishEarly();
         }
-        
-        // Call the original finishEarly function
-        finishEarly();
       } else {
         console.warn('finishEarly function is not available');
-        // Fallback for single player or error case
+        // Fallback for error case
         if (sessionState?.status === 'completed') {
           return; // Already completed, do nothing
         }

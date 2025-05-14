@@ -54,14 +54,24 @@ export function SessionProvider({ children }) {
         if (message.type === 'state_update') {
           // Ensure we have valid session state before updating
           if (message.data && typeof message.data === 'object') {
-            setSessionState(prevState => ({
-              ...prevState,
-              ...message.data,
-              // Preserve existing state if certain properties are missing in the update
-              players: message.data.players || prevState?.players || {},
-              matches: message.data.matches || prevState?.matches || {},
-              restaurants: message.data.restaurants || prevState?.restaurants || []
-            }));
+            setSessionState(prevState => {
+              // Create a new state object with the updated data
+              const newState = {
+                ...prevState,
+                ...message.data,
+                // Preserve existing state if certain properties are missing in the update
+                players: message.data.players || (prevState?.players || {}),
+                matches: message.data.matches || (prevState?.matches || {}),
+                restaurants: message.data.restaurants || (prevState?.restaurants || [])
+              };
+              
+              // If we're in 'some_players_finished' status, ensure we maintain the status
+              if (message.data.status === 'some_players_finished' && prevState?.status === 'some_players_finished') {
+                newState.status = 'some_players_finished';
+              }
+              
+              return newState;
+            });
           } else {
             console.warn('Received invalid state_update:', message.data);
           }
@@ -79,7 +89,6 @@ export function SessionProvider({ children }) {
             clearSessionData();
           }
         }
-        // Handle other message types (player_joined, match_found, etc.)
       } catch (e) {
         console.error('Error processing WebSocket message:', e, 'Raw message:', event.data);
         setError('Received an invalid message from the server.');
