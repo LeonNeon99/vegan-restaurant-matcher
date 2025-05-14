@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { Box, Typography, CircularProgress, Paper } from '@mui/material';
-import { useSession } from '../contexts/SessionContext';
+import { SessionContext } from '../contexts/SessionContext';
 
 const WaitingForPlayersScreen = () => {
-  const { sessionState, playerId } = useSession();
+  const { sessionState, playerId } = useContext(SessionContext);
   
   // Get the names of players who haven't finished yet
   const unfinishedPlayers = React.useMemo(() => {

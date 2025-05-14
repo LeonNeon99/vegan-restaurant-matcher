@@ -144,9 +144,9 @@ export default function MatchPage() {
     );
   }
   if (!sessionState || (sessionState.status !== 'active' && sessionState.status !== 'some_players_finished')) {
-    // This page should only render if session is active or some players have finished.
-    // SessionActiveDisplay should handle redirection if status is not valid.
-    // However, as a fallback or if navigated here directly:
+    // If all players are finished, don't show any waiting message (results effect will take over)
+    if (allPlayersFinished) return null;
+    // Otherwise, show fallback waiting message
     return <Container sx={{ mt: 5, textAlign: 'center' }}><Typography>Waiting for session to become active...</Typography><CircularProgress sx={{mt:2}}/></Container>;
   }
 
