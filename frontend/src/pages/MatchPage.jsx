@@ -2,8 +2,27 @@ import React, { useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import RestaurantCard from '../components/RestaurantCard';
 import { SessionContext } from '../contexts/SessionContext';
-import { Box, Button, Typography, Container, CircularProgress, Alert, Stack, IconButton, Paper } from '@mui/material';
+import { Box, Button, Typography, Container, CircularProgress, Alert, Stack, IconButton, Paper, ThemeProvider, createTheme } from '@mui/material';
 import { ArrowBack, ArrowForward, ExitToApp, DoneAll } from '@mui/icons-material';
+
+// Create theme with better contrast
+const theme = createTheme({
+  palette: {
+    background: {
+      default: '#f5f5f5',
+      paper: '#ffffff',
+    },
+    text: {
+      primary: '#333333',
+    },
+    primary: {
+      main: '#1976d2',
+      light: '#4791db',
+      dark: '#115293',
+      contrastText: '#ffffff',
+    },
+  },
+});
 
 // MatchPage now primarily consumes SessionContext
 export default function MatchPage() {
@@ -15,12 +34,18 @@ export default function MatchPage() {
     isLoading: contextIsLoading,
     error: contextError,
     playerName,
-    sendWebSocketMessage
+    sendWebSocketMessage,
+    isConnected,
   } = useContext(SessionContext);
   const navigate = useNavigate();
   
   // New state to handle Finish Early process
   const [isFinishingEarly, setIsFinishingEarly] = useState(false);
+  
+  // Log connection status
+  useEffect(() => {
+    console.log("WebSocket connected:", isConnected);
+  }, [isConnected]);
 
   useEffect(() => {
     if (contextError) {
@@ -51,19 +76,42 @@ export default function MatchPage() {
   }, [sessionState, playerId]);
 
   if (contextIsLoading && !sessionState) {
-    return <Container sx={{ mt: 5, textAlign: 'center' }}><CircularProgress /><Typography>Loading session...</Typography></Container>;
-  }
-  if (contextError) {
     return (
-      <Container sx={{ mt: 5, textAlign: 'center' }}>
-        <Alert severity="error">Session Error: {contextError}</Alert>
-        <Button onClick={() => { clearSessionData(); navigate('/'); }} sx={{mt:2}}>Go Home</Button>
-      </Container>
+      <ThemeProvider theme={theme}>
+        <Container sx={{ mt: 5, textAlign: 'center', backgroundColor: 'background.paper', p: 4, borderRadius: 2 }}>
+          <CircularProgress />
+          <Typography color="text.primary" sx={{ mt: 2 }}>Loading session...</Typography>
+        </Container>
+      </ThemeProvider>
     );
   }
+  
+  if (contextError) {
+    return (
+      <ThemeProvider theme={theme}>
+        <Container sx={{ mt: 5, textAlign: 'center', backgroundColor: 'background.paper', p: 4, borderRadius: 2 }}>
+          <Alert severity="error">Session Error: {contextError}</Alert>
+          <Button onClick={() => { clearSessionData(); navigate('/'); }} sx={{mt:2}}>Go Home</Button>
+        </Container>
+      </ThemeProvider>
+    );
+  }
+  
   if (!sessionState || sessionState.status !== 'active') {
     // This page should only render if session is active
-    return <Container sx={{ mt: 5, textAlign: 'center' }}><Typography>Waiting for session to become active...</Typography><CircularProgress sx={{mt:2}}/></Container>;
+    return (
+      <ThemeProvider theme={theme}>
+        <Container sx={{ mt: 5, textAlign: 'center', backgroundColor: 'background.paper', p: 4, borderRadius: 2 }}>
+          <Typography color="text.primary">Waiting for session to become active...</Typography>
+          <CircularProgress sx={{mt:2}}/>
+          {!isConnected && (
+            <Alert severity="warning" sx={{ mt: 2 }}>
+              Not connected to server. Please refresh the page if this persists.
+            </Alert>
+          )}
+        </Container>
+      </ThemeProvider>
+    );
   }
 
   const { 
@@ -77,38 +125,60 @@ export default function MatchPage() {
   const currentPlayerState = players[playerId];
 
   if (!currentPlayerState) {
-    return <Container sx={{ mt: 5, textAlign: 'center' }}><Alert severity="warning">Your player data not found in session. Attempting to reconnect...</Alert><CircularProgress sx={{mt:2}} /></Container>;
+    return (
+      <ThemeProvider theme={theme}>
+        <Container sx={{ mt: 5, textAlign: 'center', backgroundColor: 'background.paper', p: 4, borderRadius: 2 }}>
+          <Alert severity="warning">Your player data not found in session. Attempting to reconnect...</Alert>
+          <CircularProgress sx={{mt:2}} />
+        </Container>
+      </ThemeProvider>
+    );
   }
 
   const currentIndex = currentPlayerState.current_index || 0;
 
   if (!restaurants || restaurants.length === 0) {
     if (sessionState.status === 'error_fetching_restaurants') {
-        return <Container sx={{mt:5, textAlign: 'center'}}><Alert severity="error">Error: Could not load restaurants for this session.</Alert></Container>; 
+      return (
+        <ThemeProvider theme={theme}>
+          <Container sx={{mt:5, textAlign: 'center', backgroundColor: 'background.paper', p: 4, borderRadius: 2}}>
+            <Alert severity="error">Error: Could not load restaurants for this session.</Alert>
+          </Container>
+        </ThemeProvider>
+      ); 
     }
-    return <Container sx={{ mt: 5, textAlign: 'center' }}><CircularProgress /><Typography>Loading restaurants...</Typography></Container>;
+    return (
+      <ThemeProvider theme={theme}>
+        <Container sx={{ mt: 5, textAlign: 'center', backgroundColor: 'background.paper', p: 4, borderRadius: 2 }}>
+          <CircularProgress />
+          <Typography color="text.primary" sx={{ mt: 2 }}>Loading restaurants...</Typography>
+        </Container>
+      </ThemeProvider>
+    );
   }
   
   // Handle when player has finished all restaurants
   if (currentIndex >= restaurants.length) {
     return (
-        <Container sx={{mt:5, textAlign: 'center', backgroundColor: '#fff', p: 4, borderRadius: 2}}>
-            <Typography variant="h5" color="primary" sx={{ mb: 2 }}>All restaurants reviewed!</Typography>
-            <Typography variant="body1" sx={{ mb: 2 }}>
-                {Object.keys(players).length > 1 
-                  ? "Waiting for other players to finish or results to be calculated..." 
-                  : "Calculating your results..."}
-            </Typography>
-            <CircularProgress sx={{my:2}}/>
-            <Button 
-              variant="outlined" 
-              onClick={handleLeaveSession} 
-              sx={{mt: 2}} 
-              startIcon={<ExitToApp />}
-            >
-                Leave Session
-            </Button>
+      <ThemeProvider theme={theme}>
+        <Container sx={{mt:5, textAlign: 'center', backgroundColor: 'background.paper', p: 4, borderRadius: 2}}>
+          <Typography variant="h5" color="primary" sx={{ mb: 2 }}>All restaurants reviewed!</Typography>
+          <Typography variant="body1" sx={{ mb: 2, color: 'text.primary' }}>
+            {Object.keys(players).length > 1 
+              ? "Waiting for other players to finish or results to be calculated..." 
+              : "Calculating your results..."}
+          </Typography>
+          <CircularProgress sx={{my:2}}/>
+          <Button 
+            variant="outlined" 
+            onClick={handleLeaveSession} 
+            sx={{mt: 2}} 
+            startIcon={<ExitToApp />}
+          >
+            Leave Session
+          </Button>
         </Container>
+      </ThemeProvider>
     );
   }
 
@@ -161,123 +231,137 @@ export default function MatchPage() {
   
   // Check if it's this player's turn (for turn-based mode)
   const isMyTurn = mode === 'freeform' || current_turn_player_id === playerId || !current_turn_player_id;
+  
+  // Single player mode detection
+  const isSinglePlayerMode = Object.keys(players).length === 1;
 
   // Show loading during finish early process
   if (isFinishingEarly) {
     return (
-      <Container sx={{mt:5, textAlign: 'center', backgroundColor: '#fff', p: 4, borderRadius: 2}}>
-        <Typography variant="h5" color="primary">Skipping remaining restaurants...</Typography>
-        <CircularProgress sx={{my:3}}/>
-        <Typography variant="body2">Please wait while we process your selection.</Typography>
-      </Container>
+      <ThemeProvider theme={theme}>
+        <Container sx={{mt:5, textAlign: 'center', backgroundColor: 'background.paper', p: 4, borderRadius: 2}}>
+          <Typography variant="h5" color="primary">Skipping remaining restaurants...</Typography>
+          <CircularProgress sx={{my:3}}/>
+          <Typography variant="body2" color="text.primary">Please wait while we process your selection.</Typography>
+        </Container>
+      </ThemeProvider>
     );
   }
 
   return (
-    <Container maxWidth="sm" sx={{ py: {xs:1, sm:2}, display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: 'calc(100vh - 64px)' /* Adjust for AppBar if any */ }}>
-        <Paper elevation={2} sx={{p:2, mb:2, width: '100%', textAlign: 'center', backgroundColor: '#ffffff'}}>
-            <Typography variant="h6" color="#1A237E">
-                {playerName || currentPlayerState.name} (Restaurant {currentIndex + 1} of {restaurants.length})
+    <ThemeProvider theme={theme}>
+      <Box sx={{ backgroundColor: 'background.default', minHeight: '100vh', py: 2 }}>
+        <Container maxWidth="sm" sx={{ py: {xs:1, sm:2}, display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: 'calc(100vh - 64px)' }}>
+          <Paper elevation={3} sx={{p:2, mb:2, width: '100%', textAlign: 'center', backgroundColor: 'background.paper', borderRadius: 2}}>
+            <Typography variant="h6" color="primary.dark" fontWeight="bold">
+              {playerName || currentPlayerState.name} (Restaurant {currentIndex + 1} of {restaurants.length})
             </Typography>
             {mode === 'turn-based' && current_turn_player_id && (
-                <Typography variant="subtitle1" color={isMyTurn ? "primary.main" : "text.secondary"}>
-                    {isMyTurn ? "It's your turn!" : `Waiting for ${players[current_turn_player_id]?.name || 'player'}...`}
-                </Typography>
+              <Typography variant="subtitle1" color={isMyTurn ? "primary.main" : "text.secondary"}>
+                {isMyTurn ? "It's your turn!" : `Waiting for ${players[current_turn_player_id]?.name || 'player'}...`}
+              </Typography>
             )}
-        </Paper>
+            {!isConnected && (
+              <Alert severity="warning" sx={{ mt: 1, fontSize: '0.8rem' }}>
+                Not connected to server - Some actions may not work
+              </Alert>
+            )}
+          </Paper>
 
-      {currentRestaurant ? (
-        <RestaurantCard
-          restaurant={currentRestaurant}
-          onLike={() => handleSwipe('like')}
-          onDislike={() => handleSwipe('dislike')}
-          onSuperlike={() => handleSwipe('superlike')}
-          isSuperliked={isSuperlikedByCurrentUser}
-          otherPlayerSuperlikeIds={otherPlayerSuperlikeIds}
-          disabled={!isMyTurn}
-        />
-      ) : (
-        <Typography sx={{mt:5}}>Something went wrong, no current restaurant.</Typography>
-      )}
+          {currentRestaurant ? (
+            <RestaurantCard
+              restaurant={currentRestaurant}
+              onLike={() => handleSwipe('like')}
+              onDislike={() => handleSwipe('dislike')}
+              onSuperlike={() => handleSwipe('superlike')}
+              isSuperliked={isSuperlikedByCurrentUser}
+              otherPlayerSuperlikeIds={otherPlayerSuperlikeIds}
+              disabled={!isMyTurn}
+            />
+          ) : (
+            <Typography sx={{mt:5, color: 'text.primary'}}>Something went wrong, no current restaurant.</Typography>
+          )}
 
-      <Stack direction="row" spacing={2} sx={{ mt: 2, width: '100%', justifyContent: 'center' }}>
-        <Button 
-          variant="outlined" 
-          color="error" 
-          onClick={() => handleSwipe('dislike')} 
-          disabled={!isMyTurn || !currentRestaurant} 
-          sx={{ 
-            flexGrow: 1, 
-            py:1.5, 
-            fontWeight: 'bold',
-            border: '2px solid',
-            '&:hover': { backgroundColor: '#ffebee' }
-          }}
-        >
-          Pass
-        </Button>
-        <Button 
-          variant="contained" 
-          color="success" 
-          onClick={() => handleSwipe('like')} 
-          disabled={!isMyTurn || !currentRestaurant} 
-          sx={{ 
-            flexGrow: 1, 
-            py:1.5,
-            fontWeight: 'bold',
-            '&:hover': { backgroundColor: '#2e7d32' }
-          }}
-        >
-          Like
-        </Button>
-        <Button 
-          variant="contained" 
-          color="warning" 
-          onClick={() => handleSwipe('superlike')} 
-          disabled={!isMyTurn || !currentRestaurant || isSuperlikedByCurrentUser} 
-          sx={{ 
-            flexGrow: 1, 
-            py:1.5,
-            fontWeight: 'bold',
-            '&:hover': { backgroundColor: '#f57c00' }
-          }}
-        >
-          Superlike
-        </Button>
-      </Stack>
-      
-      <Stack direction="row" spacing={2} sx={{ mt: 2, width: '100%', justifyContent: 'center' }}>
-        <Button 
-          variant="outlined"
-          onClick={handleFinishEarly} 
-          disabled={!isMyTurn || !currentRestaurant}
-          sx={{ 
-            flexGrow: 1,
-            fontWeight: 'bold',
-            color: '#1976d2',
-            borderColor: '#1976d2',
-            '&:hover': { backgroundColor: '#e3f2fd' }
-          }}
-          startIcon={<DoneAll />}
-        >
-          Finish Early
-        </Button>
-        
-        <Button 
-          variant="outlined" 
-          color="error"
-          onClick={handleLeaveSession} 
-          sx={{ 
-            flexGrow: 1,
-            fontWeight: 'bold',
-            border: '2px solid',
-            '&:hover': { backgroundColor: '#ffebee' }
-          }}
-          startIcon={<ExitToApp />}
-        >
-          Leave Session
-        </Button>
-      </Stack>
-    </Container>
+          <Stack direction="row" spacing={2} sx={{ mt: 2, width: '100%', justifyContent: 'center' }}>
+            <Button 
+              variant="outlined" 
+              color="error" 
+              onClick={() => handleSwipe('dislike')} 
+              disabled={!isMyTurn || !currentRestaurant} 
+              sx={{ 
+                flexGrow: 1, 
+                py:1.5, 
+                fontWeight: 'bold',
+                border: '2px solid',
+                '&:hover': { backgroundColor: '#ffebee' }
+              }}
+            >
+              Pass
+            </Button>
+            <Button 
+              variant="contained" 
+              color="success" 
+              onClick={() => handleSwipe('like')} 
+              disabled={!isMyTurn || !currentRestaurant} 
+              sx={{ 
+                flexGrow: 1, 
+                py:1.5,
+                fontWeight: 'bold',
+                '&:hover': { backgroundColor: '#2e7d32' }
+              }}
+            >
+              Like
+            </Button>
+            <Button 
+              variant="contained" 
+              color="warning" 
+              onClick={() => handleSwipe('superlike')} 
+              disabled={!isMyTurn || !currentRestaurant || isSuperlikedByCurrentUser} 
+              sx={{ 
+                flexGrow: 1, 
+                py:1.5,
+                fontWeight: 'bold',
+                '&:hover': { backgroundColor: '#f57c00' }
+              }}
+            >
+              Superlike
+            </Button>
+          </Stack>
+          
+          <Stack direction="row" spacing={2} sx={{ mt: 2, width: '100%', justifyContent: 'center' }}>
+            <Button 
+              variant="outlined"
+              onClick={handleFinishEarly} 
+              disabled={!isMyTurn || !currentRestaurant}
+              sx={{ 
+                flexGrow: 1,
+                fontWeight: 'bold',
+                color: '#1976d2',
+                borderColor: '#1976d2',
+                '&:hover': { backgroundColor: '#e3f2fd' }
+              }}
+              startIcon={<DoneAll />}
+            >
+              Finish Early
+            </Button>
+            
+            <Button 
+              variant="outlined" 
+              color="error"
+              onClick={handleLeaveSession} 
+              sx={{ 
+                flexGrow: 1,
+                fontWeight: 'bold',
+                border: '2px solid',
+                '&:hover': { backgroundColor: '#ffebee' }
+              }}
+              startIcon={<ExitToApp />}
+            >
+              Leave Session
+            </Button>
+          </Stack>
+        </Container>
+      </Box>
+    </ThemeProvider>
   );
 }

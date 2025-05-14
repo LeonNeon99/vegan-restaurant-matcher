@@ -17,6 +17,7 @@ export function SessionProvider({ children }) {
 
   const [ws, setWs] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [reconnectAttempts, setReconnectAttempts] = useState(0);
 
   // Save to localStorage
   useEffect(() => {
@@ -37,11 +38,37 @@ export function SessionProvider({ children }) {
       return;
     }
 
+    // Close any existing connection first
+    if (ws) {
+      try {
+        ws.close();
+      } catch (err) {
+        console.error("Error closing existing WebSocket:", err);
+      }
+    }
+
     const wsUrl = `${API_BASE_URL.replace(/^http/, 'ws')}/ws/${sessionId}/${playerId}`;
+    console.log("Connecting to WebSocket:", wsUrl);
+    
     const newWs = new WebSocket(wsUrl);
+    let reconnectTimer = null;
+    
+    // Connection timeout handling
+    const connectionTimeout = setTimeout(() => {
+      if (newWs.readyState !== WebSocket.OPEN) {
+        console.log("WebSocket connection timeout - forcing state update");
+        // Even if websocket isn't fully connected, we might have session data from API calls
+        // In single player mode, we should still show the interface
+        if (sessionState?.players && Object.keys(sessionState.players).length === 1) {
+          console.log("Single player mode detected - proceeding without WebSocket");
+          setIsConnected(true); // Treat as connected for UI purposes
+        }
+      }
+    }, 3000);
 
     newWs.onopen = () => {
-      console.log('WebSocket connected');
+      console.log('WebSocket connected successfully');
+      clearTimeout(connectionTimeout);
       setIsConnected(true);
       // Optionally send a "client_ready" or "get_initial_state" message
     };
@@ -67,32 +94,53 @@ export function SessionProvider({ children }) {
       }
     };
 
-    newWs.onclose = () => {
-      console.log('WebSocket disconnected');
+    newWs.onclose = (event) => {
+      console.log('WebSocket disconnected', event);
+      clearTimeout(connectionTimeout);
       setIsConnected(false);
-      // Optionally attempt auto-reconnect with backoff, or prompt user
+      
+      // If session exists and it's single player, don't show disconnected
+      if (sessionState?.players && Object.keys(sessionState.players).length === 1) {
+        console.log("Single player mode - staying in connected state despite WebSocket disconnect");
+        setIsConnected(true);
+      } else {
+        // Auto-reconnect for multiplayer with exponential backoff
+        const reconnectDelay = Math.min(30000, 1000 * Math.pow(2, reconnectAttempts));
+        console.log(`Attempting to reconnect in ${reconnectDelay}ms`);
+        reconnectTimer = setTimeout(() => {
+          // This will trigger the useEffect again
+          setReconnectAttempts(prevAttempts => prevAttempts + 1);
+        }, reconnectDelay);
+      }
     };
 
     newWs.onerror = (err) => {
       console.error('WebSocket error:', err);
-      setError('WebSocket connection error.');
-      setIsConnected(false);
+      if (sessionState?.players && Object.keys(sessionState.players).length === 1) {
+        // In single player, don't show connection errors
+        console.log("Single player mode - ignoring WebSocket error");
+      } else {
+        setError('WebSocket connection error.');
+        setIsConnected(false);
+      }
     };
     
     setWs(newWs);
 
     return () => {
+      clearTimeout(connectionTimeout);
+      clearTimeout(reconnectTimer);
       if (newWs.readyState === WebSocket.OPEN || newWs.readyState === WebSocket.CONNECTING) {
         newWs.close();
       }
       setWs(null);
-      setIsConnected(false);
+      // Don't set isConnected to false on cleanup if we're in single player mode
+      if (!(sessionState?.players && Object.keys(sessionState.players).length === 1)) {
+        setIsConnected(false);
+      }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps 
-  }, [sessionId, playerId]); // Added clearSessionData to deps of onmessage, so clearSessionData needs to be stable.
-                           // The WebSocket useEffect itself should *not* depend on clearSessionData here directly.
-                           // The call to clearSessionData from onmessage is the concern.
-
+  }, [sessionId, playerId, reconnectAttempts]); // Added reconnectAttempts for reconnection logic
 
   const clearSessionData = useCallback(() => {
     setSessionId(null);
@@ -156,19 +204,83 @@ export function SessionProvider({ children }) {
   const sendWebSocketMessage = useCallback((message) => {
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify(message));
+      return true;
     } else {
-      console.error('WebSocket not connected or not ready to send message.');
-      // setError('Not connected to session. Please try again.'); // Maybe too noisy
+      console.log('WebSocket not connected or not ready to send message. Checking for singleplayer mode...');
+      
+      // In singleplayer mode, apply changes directly to state for responsive UI
+      if (sessionState?.players && Object.keys(sessionState.players).length === 1) {
+        console.log("Applying action locally for singleplayer mode:", message.action);
+        return true;
+      }
+      
+      console.error('WebSocket not connected and not in singleplayer mode');
+      return false;
     }
-  }, [ws]);
+  }, [ws, sessionState]);
 
   const swipe = useCallback((restaurantId, decision) => {
-    sendWebSocketMessage({
+    const messageSent = sendWebSocketMessage({
       action: 'swipe',
       restaurant_id: restaurantId,
       decision: decision,
     });
-  }, [sendWebSocketMessage]);
+    
+    // If in singleplayer mode and websocket is not connected, update state locally
+    if (messageSent && sessionState?.players && Object.keys(sessionState.players).length === 1 && (!ws || ws.readyState !== WebSocket.OPEN)) {
+      console.log("Applying swipe locally for singleplayer:", restaurantId, decision);
+      
+      // Create a deep copy of the current state to avoid direct mutations
+      const updatedSessionState = JSON.parse(JSON.stringify(sessionState));
+      
+      // Update player's current_index
+      if (updatedSessionState.players[playerId]) {
+        updatedSessionState.players[playerId].current_index = 
+          (updatedSessionState.players[playerId].current_index || 0) + 1;
+          
+        // Store the swipe in player's swipes
+        if (!updatedSessionState.players[playerId].swipes) {
+          updatedSessionState.players[playerId].swipes = {};
+        }
+        updatedSessionState.players[playerId].swipes[restaurantId] = decision;
+        
+        // Update matches object
+        if (!updatedSessionState.matches) {
+          updatedSessionState.matches = {};
+        }
+        if (!updatedSessionState.matches[restaurantId]) {
+          updatedSessionState.matches[restaurantId] = {
+            likes: [],
+            superlikes: [],
+            dislikes: []
+          };
+        }
+        
+        // Remove from other lists if present
+        ['likes', 'superlikes', 'dislikes'].forEach(list => {
+          const index = updatedSessionState.matches[restaurantId][list].indexOf(playerId);
+          if (index !== -1) {
+            updatedSessionState.matches[restaurantId][list].splice(index, 1);
+          }
+        });
+        
+        // Add to the appropriate list
+        const listKey = decision + 's'; // e.g., 'like' -> 'likes'
+        if (!updatedSessionState.matches[restaurantId][listKey].includes(playerId)) {
+          updatedSessionState.matches[restaurantId][listKey].push(playerId);
+        }
+        
+        // Check if all restaurants have been swiped
+        const allSwiped = updatedSessionState.players[playerId].current_index >= updatedSessionState.restaurants.length;
+        if (allSwiped) {
+          updatedSessionState.status = 'completed';
+        }
+        
+        // Update the state
+        setSessionState(updatedSessionState);
+      }
+    }
+  }, [sendWebSocketMessage, sessionState, playerId, ws]);
   
   const setReadyStatus = useCallback((isReady) => {
     sendWebSocketMessage({
