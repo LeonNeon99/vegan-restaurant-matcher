@@ -12,6 +12,7 @@ import ResultsPage from './pages/ResultsPage'; // Will be refactored to use cont
 import SetupPage from './pages/SetupPage'; // Original setup, can be a fallback or new entry point
 import WaitingRoomPage from './pages/WaitingRoomPage'; // Import the new WaitingRoomPage
 import RestaurantCard from './components/RestaurantCard'; // Import RestaurantCard for SinglePlayerMatchPage
+import WaitingForPlayersScreen from './components/WaitingForPlayersScreen';
 
 import { SessionContext } from './contexts/SessionContext';
 
