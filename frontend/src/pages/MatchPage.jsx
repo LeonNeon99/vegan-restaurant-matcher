@@ -7,6 +7,7 @@ import { Box, Button, Typography, Container, CircularProgress, Alert, Stack, Ico
 import { ArrowBack, ArrowForward, ExitToApp } from '@mui/icons-material';
 
 // MatchPage now primarily consumes SessionContext
+// All return paths must always return a valid React element to prevent React error #300
 export default function MatchPage() {
   const [stage, setStage] = useState('swiping');
 
@@ -48,18 +49,19 @@ export default function MatchPage() {
     );
   }
 
-  // Defensive: If sessionState is missing, show loading
+  // Defensive: If sessionState is missing, show error and log
   if (!sessionState) {
+    console.error('MatchPage: sessionState is missing!');
     return (
       <Container sx={{ mt: 5, textAlign: 'center' }}>
-        <CircularProgress />
-        <Typography>Waiting for session data...</Typography>
+        <Typography color="error">Session data is missing. Please try rejoining.</Typography>
       </Container>
     );
   }
 
   // Defensive: If playerId is missing or player not found
   if (!playerId || !sessionState.players || !sessionState.players[playerId]) {
+    console.error('MatchPage: playerId missing or not found in sessionState.players', { playerId, players: sessionState.players });
     return (
       <Container sx={{ mt: 5, textAlign: 'center' }}>
         <Alert severity="error">Player not found in session. Please rejoin or check your link.</Alert>
@@ -72,10 +74,10 @@ export default function MatchPage() {
   if (!sessionState.restaurants || sessionState.restaurants.length === 0) {
     // If all players are finished, don't show loading, let the results effect take over
     if (allPlayersFinished) return null;
+    console.error('MatchPage: sessionState.restaurants missing or empty!', { restaurants: sessionState.restaurants });
     return (
       <Container sx={{ mt: 5, textAlign: 'center' }}>
-        <CircularProgress />
-        <Typography>Loading restaurants...</Typography>
+        <Typography color="error">No restaurants loaded for this session. Please try rejoining.</Typography>
       </Container>
     );
   }

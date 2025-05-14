@@ -64,7 +64,8 @@ export function SessionProvider({ children }) {
                 matches: message.data.matches || (prevState?.matches || {}),
                 restaurants: message.data.restaurants || (prevState?.restaurants || [])
               };
-              
+              // Log every sessionState update for debugging
+              console.log('SessionContext: sessionState updated:', newState);
               // If we're in 'some_players_finished' status, ensure we maintain the status
               if (message.data.status === 'some_players_finished' && prevState?.status === 'some_players_finished') {
                 newState.status = 'some_players_finished';
@@ -90,7 +91,7 @@ export function SessionProvider({ children }) {
           }
         }
       } catch (e) {
-        console.error('Error processing WebSocket message:', e, 'Raw message:', event.data);
+        console.error('Error processing WebSocket message:', e, e?.stack, 'Raw message:', event.data);
         setError('Received an invalid message from the server.');
       }
     };

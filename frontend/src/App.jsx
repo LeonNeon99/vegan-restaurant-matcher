@@ -76,10 +76,9 @@ const SessionActiveDisplay = () => {
     return <ResultsPage />;
   }
 
-  if (sessionState?.status === "some_players_finished") {
-    // Show waiting screen for players who finished early
-    return <WaitingForPlayersScreen />;
-  }
+  // Log the current session status for debugging
+  console.log('SessionActiveDisplay sessionState.status:', sessionState?.status);
+  // Removed redundant 'some_players_finished' early return; now handled in the switch below.
 
   useEffect(() => {
     // If context has no session/player ID, but URL does, set them in context.
