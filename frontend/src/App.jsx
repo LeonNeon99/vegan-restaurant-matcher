@@ -40,7 +40,8 @@ const SessionLayout = () => {
 function App() {
   // Most of the old state and handlers are removed as they will be managed
   // by SessionContext or individual pages.
-
+  console.log("App component rendering - checking routes");
+  
   return (
     <Routes>
       <Route path="/" element={<HomePage />} />
@@ -65,6 +66,14 @@ const SessionActiveDisplay = () => {
   const { sessionState, isLoading, error, clearSessionData, playerId, sessionId, setSessionIdExternally, setPlayerIdExternally, isConnected } = useContext(SessionContext);
   const navigate = useNavigate();
   const params = useParams();
+  
+  console.log("SessionActiveDisplay rendering", { 
+    sessionId, 
+    playerId, 
+    params, 
+    sessionState: sessionState ? "exists" : "null",
+    status: sessionState?.status
+  });
 
   useEffect(() => {
     // If context has no session/player ID, but URL does, set them in context.
@@ -170,6 +179,8 @@ const SinglePlayerMatchPage = ({
     onFinish, 
     onRestart 
 }) => {
+    console.log("SinglePlayerMatchPage rendering", { player, currentIdx });
+    
     if (isLoading) {
         return <Container sx={{ mt: 5, textAlign: 'center' }}><CircularProgress /><Typography>Loading restaurants...</Typography></Container>;
     }
