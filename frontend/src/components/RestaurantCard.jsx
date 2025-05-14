@@ -101,7 +101,8 @@ function RestaurantCard({
         borderRadius: 3,
         boxShadow: 3,
         border: (isSuperliked || superlikedByCurrentUser) ? '2px solid orange' : (isMatched && likedByCurrentUser ? '2px solid green' : '1px solid #ddd'),
-        backgroundColor: isMatched ? '#f0fff0' : 'inherit'
+        backgroundColor: '#ffffff',
+        color: '#000000',
       }}>
         <CardMedia
           component="img"
@@ -110,49 +111,52 @@ function RestaurantCard({
           alt={restaurant.name}
           sx={{ objectFit: 'cover' }}
         />
-        <CardContent sx={{pb:0}}>
-          <Typography gutterBottom variant="h5" component="div">
+        <CardContent sx={{pb:0, backgroundColor: '#ffffff'}}>
+          <Typography gutterBottom variant="h5" component="div" color="primary.dark" fontWeight="bold">
             {restaurant.name}
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{minHeight: '2.5em', mb: 0.5}}
+          <Typography variant="body2" color="text.primary" sx={{minHeight: '2.5em', mb: 0.5}}
           >
             {restaurant.categories?.map(c => c.title).join(', ')}
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', my: 0.5 }}>
-            <LocationOn fontSize="small" sx={{ mr: 0.5 }} />
-            <Typography variant="body2" color="text.secondary">
+            <LocationOn fontSize="small" sx={{ mr: 0.5, color: 'primary.main' }} />
+            <Typography variant="body2" color="text.primary">
               {restaurant.location?.display_address?.join(', ') || 'Address not available'}
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', mb:1 }}>
             <Rating name={`rating-${restaurant.id}`} value={restaurant.rating || 0} precision={0.5} readOnly size="small" sx={{mr:0.5}}/>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="text.primary" fontWeight="medium">
               ({restaurant.review_count || 0} reviews) - {restaurant.price || 'N/A'}
             </Typography>
           </Box>
         </CardContent>
         
         {!isMatched && onLike && (
-            <CardActions sx={{ display: 'flex', justifyContent: 'space-around', pt:0, pb:1 }}>
-              <IconButton onClick={onDislike} color="error" disabled={disabled} sx={{border: '1px solid', borderColor: 'error.light', p:1}}><RestaurantMenu sx={{transform: 'rotate(135deg)'}} /> </IconButton>
-              <IconButton onClick={onSuperlike} color="warning" disabled={disabled || isSuperliked} sx={{border: '1px solid', borderColor: 'warning.light', p:1}}><Star /></IconButton>
-              <IconButton onClick={onLike} color="success" disabled={disabled} sx={{border: '1px solid', borderColor: 'success.light', p:1}}><Favorite /></IconButton>
+            <CardActions sx={{ display: 'flex', justifyContent: 'space-around', pt:0, pb:1, backgroundColor: '#ffffff' }}>
+              <IconButton onClick={onDislike} color="error" disabled={disabled} sx={{border: '1px solid', borderColor: 'error.main', p:1}}><RestaurantMenu sx={{transform: 'rotate(135deg)'}} /> </IconButton>
+              <IconButton onClick={onSuperlike} color="warning" disabled={disabled || isSuperliked} sx={{border: '1px solid', borderColor: 'warning.main', p:1}}><Star /></IconButton>
+              <IconButton onClick={onLike} color="success" disabled={disabled} sx={{border: '1px solid', borderColor: 'success.main', p:1}}><Favorite /></IconButton>
             </CardActions>
         )}
         
-        <CardActions sx={{ justifyContent: 'flex-start', pt:0, pl:1, pb: isMatched && !expanded ? 1 : (isMatched && expanded ? 0 : (!isMatched && !expanded ? 0 : 0) ) }}>
+        <CardActions sx={{ justifyContent: 'flex-start', pt:0, pl:1, pb: isMatched && !expanded ? 1 : (isMatched && expanded ? 0 : (!isMatched && !expanded ? 0 : 0) ), backgroundColor: '#ffffff' }}>
             <ExpandMore
                 expand={expanded}
                 onClick={handleExpandClick}
                 aria-expanded={expanded}
                 aria-label="show more"
+                sx={{ color: 'primary.main' }}
             >
-                <InfoIcon /><Typography variant="caption" sx={{ml:0.5}}>{expanded? "Hide" : "Details"}</Typography>
+                <InfoIcon /><Typography variant="caption" sx={{ml:0.5, color: 'primary.main', fontWeight: 'medium'}}>
+                  {expanded? "Hide" : "Details"}
+                </Typography>
             </ExpandMore>
         </CardActions>
 
         <Collapse in={expanded} timeout="auto" unmountOnExit>
-          <CardContent sx={{pt:0}}>
+          <CardContent sx={{pt:0, backgroundColor: '#ffffff'}}>
             {loadingDetails && <Box sx={{display:'flex', justifyContent:'center'}}><CircularProgress size={24} /></Box>}
             {errorDetails && <Alert severity="error" sx={{mb:1}}>{errorDetails}</Alert>}
             {details && (

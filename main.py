@@ -125,7 +125,7 @@ async def fetch_restaurants_for_session(session_id: str):
         "longitude": session["setup"]["lng"],
         "radius": min(session["setup"]["radius"], 40000),
         "categories": "vegan,vegetarian",
-        "limit": 50, # Max limit by Yelp
+        "limit": 20, # Changed from 50 to 20
         "sort_by": session["setup"]["sort_by"] or "best_match",
     }
     if session["setup"]["price"]:
@@ -286,7 +286,7 @@ async def get_restaurants(request: RestaurantRequest, background_tasks: Backgrou
         "longitude": request.lng,
         "radius": min(request.radius, 40000), # Yelp max radius is 40km
         "categories": "vegan,vegetarian", # Focusing on vegan/vegetarian
-        "limit": 50, # Yelp API max limit
+        "limit": 20, # Changed from 50 to 20
         "sort_by": request.sort_by or "best_match",
     }
     if request.price:

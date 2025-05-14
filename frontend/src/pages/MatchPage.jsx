@@ -121,13 +121,29 @@ export default function MatchPage() {
   const isMyTurn = mode === 'freeform' || current_turn_player_id === playerId || !current_turn_player_id;
 
   return (
-    <Container maxWidth="sm" sx={{ py: {xs:1, sm:2}, display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: 'calc(100vh - 64px)' /* Adjust for AppBar if any */ }}>
-        <Paper elevation={2} sx={{p:2, mb:2, width: '100%', textAlign: 'center'}}>
-            <Typography variant="h6">
+    <Container maxWidth="sm" sx={{ 
+      py: {xs:1, sm:2}, 
+      display: 'flex', 
+      flexDirection: 'column', 
+      alignItems: 'center', 
+      minHeight: 'calc(100vh - 64px)', /* Adjust for AppBar if any */
+      backgroundColor: '#f5f5f5', /* Light background for the container */
+      borderRadius: 2,
+      my: 2,
+      boxShadow: 3
+    }}>
+        <Paper elevation={2} sx={{
+          p:2, 
+          mb:2, 
+          width: '100%', 
+          textAlign: 'center',
+          backgroundColor: '#ffffff'
+        }}>
+            <Typography variant="h6" color="primary.dark" fontWeight="bold">
                 {playerName || currentPlayerState.name} (Restaurant {currentIndex + 1} of {restaurants.length})
             </Typography>
             {mode === 'turn-based' && current_turn_player_id && (
-                <Typography variant="subtitle1" color={isMyTurn ? "primary.main" : "text.secondary"}>
+                <Typography variant="subtitle1" color={isMyTurn ? "primary.main" : "text.secondary"} fontWeight="medium">
                     {isMyTurn ? "It's your turn!" : `Waiting for ${players[current_turn_player_id]?.name || 'player'}...`}
                 </Typography>
             )}
@@ -145,11 +161,11 @@ export default function MatchPage() {
           // animationClass={animation} // Optional animation class
         />
       ) : (
-        <Typography sx={{mt:5}}>Something went wrong, no current restaurant.</Typography>
+        <Typography sx={{mt:5, color: 'text.primary'}}>Something went wrong, no current restaurant.</Typography>
       )}
 
       <Stack direction="row" spacing={2} sx={{ mt: 2, width: '100%', justifyContent: 'center' }}>
-        <Button variant="outlined" color="error" onClick={() => handleSwipe('dislike')} disabled={!isMyTurn || !currentRestaurant} sx={{ flexGrow: 1, py:1.5}}>
+        <Button variant="contained" color="error" onClick={() => handleSwipe('dislike')} disabled={!isMyTurn || !currentRestaurant} sx={{ flexGrow: 1, py:1.5}}>
           Pass
         </Button>
         <Button variant="contained" color="success" onClick={() => handleSwipe('like')} disabled={!isMyTurn || !currentRestaurant} sx={{ flexGrow: 1, py:1.5}}>
@@ -160,7 +176,7 @@ export default function MatchPage() {
         </Button>
       </Stack>
 
-      <Button variant="outlined" onClick={handleLeaveSession} sx={{mt: 3}} startIcon={<ExitToApp />}>
+      <Button variant="contained" color="primary" onClick={handleLeaveSession} sx={{mt: 3}} startIcon={<ExitToApp />}>
         Leave Session
       </Button>
     </Container>
