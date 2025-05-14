@@ -261,9 +261,10 @@ export default function MatchPage() {
                 {isMyTurn ? "It's your turn!" : `Waiting for ${players[current_turn_player_id]?.name || 'player'}...`}
               </Typography>
             )}
-            {!isConnected && (
+            {/* Only show connection warning in multiplayer if not connected */}
+            {!isConnected && sessionState && Object.keys(sessionState.players).length > 1 && (
               <Alert severity="warning" sx={{ mt: 1, fontSize: '0.8rem' }}>
-                Not connected to server - Some actions may not work
+                Not connected to server - Some actions may not work as expected.
               </Alert>
             )}
           </Paper>

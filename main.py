@@ -147,15 +147,6 @@ async def fetch_restaurants_for_session(session_id: str):
             
             session["restaurants"] = fetched_restaurants
             
-            # Auto-activate session if only 1 player (singleplayer mode)
-            if len(session.get("players", {})) == 1 and session.get("status") == "waiting_for_players":
-                print(f"Auto-activating single player session {session_id} after fetching restaurants")
-                session["status"] = "active"
-                # Set player ready
-                for player_id in session["players"]:
-                    session["players"][player_id]["ready"] = True
-                    session["players"][player_id]["current_index"] = 0  # Ensure it starts at 0
-            
             print(f"Restaurants fetched for session {session_id}. Count: {len(fetched_restaurants)}")
             await broadcast_state_update(session_id) # Notify that restaurants are loaded
 
@@ -452,14 +443,11 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, player_id: s
     player_name = current_player_data.get("name", "Unknown")
     print(f"Player {player_id} ({player_name}) connected to session {session_id}")
     
-    # Auto-start for singleplayer mode only if this is a singleplayer session
-    player_count = len(session.get("players", {}))
-    if player_count == 1 and session.get("status") == "waiting_for_players" and len(session.get("restaurants", [])) > 0:
-        print(f"Auto-starting single player session {session_id} - player count: {player_count}")
+    # If the connecting player is the host and they are the only one, mark them as ready.
+    if player_id == session.get("host_id") and len(session.get("players", {})) == 1:
+        print(f"Host {player_name} is the only player in session {session_id}. Marking as ready.")
         current_player_data["ready"] = True
-        session["status"] = "active"
-        # Reset index to start at 0
-        current_player_data["current_index"] = 0
+        # DO NOT set session status to active here.
     
     await broadcast_state_update(session_id)
 
@@ -499,17 +487,20 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, player_id: s
                     current_player_data["current_index"] = current_player_data.get("current_index", 0) + 1
                     
                     # Check if all players have completed swiping through all restaurants
-                    # Only count connected players in the completion check
                     connected_players = [p for p in session.get("players", {}).values() if p.get("connected", False)]
                     all_players_finished = True
-                    for p in connected_players:
-                        if p.get("current_index", 0) < len(session.get("restaurants", [])):
-                            all_players_finished = False
-                            break
-                    
-                    if all_players_finished and connected_players:
-                        session["status"] = "completed"
-                        print(f"Session {session_id} marked as completed - all players have swiped through all restaurants")
+                    # Only check for completion if the session is active
+                    if session.get("status") == "active" and connected_players:
+                        for p in connected_players:
+                            if p.get("current_index", 0) < len(session.get("restaurants", [])):
+                                all_players_finished = False
+                                break
+                        
+                        if all_players_finished:
+                            session["status"] = "completed"
+                            print(f"Session {session_id} marked as completed - all players have swiped through all restaurants")
+                    else:
+                        all_players_finished = False # Not active or no connected players, so not finished in this sense
                     
                     await broadcast_state_update(session_id)
             
@@ -518,34 +509,30 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, player_id: s
                 print(f"Player {player_name} is finishing early, skipping {data.get('remaining_count', 0)} restaurants")
                 # No special backend handling needed - the frontend will send individual swipes to complete
                 
-            elif action == "set_ready":
+            elif action == "set_ready": # Player explicitly sets their ready state
                 is_ready = data.get("ready", False)
                 current_player_data["ready"] = bool(is_ready)
                 print(f"Player {player_name} is now {'ready' if is_ready else 'not ready'}.")
                 await broadcast_state_update(session_id)
                 
             elif action == "start_session":
-                # Check if this player is the host
                 is_host = current_player_data.get("is_host", False)
                 is_marked_as_host_id = session.get("host_id") == player_id
                 
-                print(f"Start session requested by {player_name} (ID: {player_id})")
-                print(f"Player is_host flag: {is_host}")
-                print(f"Session host_id: {session.get('host_id')}")
-                print(f"Match: {is_marked_as_host_id}")
-                
                 if is_host or is_marked_as_host_id:
-                    # Check if all players are ready
-                    all_players_ready = all(player.get("ready", False) for player in session.get("players", {}).values())
-                    if all_players_ready:
-                        session["status"] = "active"
-                        print(f"Session {session_id} started by host {player_name}")
-                        await broadcast_state_update(session_id)
+                    if session.get("status") == "waiting_for_players": # Can only start if waiting
+                        all_players_ready = all(player.get("ready", False) for player in session.get("players", {}).values() if player.get("connected"))
+                        if all_players_ready:
+                            session["status"] = "active"
+                            print(f"Session {session_id} started by host {player_name}")
+                            await broadcast_state_update(session_id)
+                        else:
+                            await websocket.send_json({"type": "error", "message": "All connected players must be ready to start the session."})
+                    elif session.get("status") == "active":
+                         await websocket.send_json({"type": "error", "message": "Session is already active."})
                     else:
-                        # Send error to host
-                        await websocket.send_json({"type": "error", "message": "All players must be ready to start the session"})
+                        await websocket.send_json({"type": "error", "message": f"Session cannot be started. Current status: {session.get('status')}"})
                 else:
-                    # Send error about not being host
                     await websocket.send_json({"type": "error", "message": "Only the host can start the session"})
 
             # Further actions: e.g., host starts game, advances turn (if turn-based)
