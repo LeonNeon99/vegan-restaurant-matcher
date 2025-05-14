@@ -39,6 +39,38 @@ export default function MatchPage() {
       </Container>
     );
   }
+
+  // Defensive: If sessionState is missing, show loading
+  if (!sessionState) {
+    return (
+      <Container sx={{ mt: 5, textAlign: 'center' }}>
+        <CircularProgress />
+        <Typography>Waiting for session data...</Typography>
+      </Container>
+    );
+  }
+
+  // Defensive: If playerId is missing or player not found
+  if (!playerId || !sessionState.players || !sessionState.players[playerId]) {
+    return (
+      <Container sx={{ mt: 5, textAlign: 'center' }}>
+        <Alert severity="error">Player not found in session. Please rejoin or check your link.</Alert>
+        <Button onClick={() => { clearSessionData(); navigate('/'); }} sx={{mt:2}}>Go Home</Button>
+      </Container>
+    );
+  }
+
+  // Defensive: If restaurants are missing
+  if (!sessionState.restaurants || sessionState.restaurants.length === 0) {
+    // If all players are finished, don't show loading, let the results effect take over
+    if (allPlayersFinished) return null;
+    return (
+      <Container sx={{ mt: 5, textAlign: 'center' }}>
+        <CircularProgress />
+        <Typography>Loading restaurants...</Typography>
+      </Container>
+    );
+  }
   
   // Track if current player has finished
   const currentPlayerFinished = useMemo(() => {
