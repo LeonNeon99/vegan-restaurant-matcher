@@ -19,13 +19,13 @@ const ExpandMore = styled((props) => {
 }));
 
 function RestaurantCard({
-  restaurant,
+  restaurant = {},
   onLike, 
   onDislike, 
   onSuperlike, 
-  isSuperliked, 
-  otherPlayerSuperlikeIds, 
-  disabled, 
+  isSuperliked = false, 
+  otherPlayerSuperlikeIds = new Set(), 
+  disabled = false, 
   isMatched = false, 
   showMatchDetails = false, 
   allLikers = [], 
@@ -83,7 +83,9 @@ function RestaurantCard({
   const formattedHoursLines = details ? formatHoursToListItems(details.hours) : [];
 
   const wasSuperlikedByOtherPlayerInMatchPhase = otherPlayerSuperlikeIds instanceof Set && otherPlayerSuperlikeIds.has(restaurant.id);
-  const badgeContent = isSuperliked || superlikedByCurrentUser ? <Star color="warning" /> : (wasSuperlikedByOtherPlayerInMatchPhase ? <StarBorder color="warning" /> : null);
+  const badgeContent = (isSuperliked || superlikedByCurrentUser) ? 
+    <Star color="warning" /> : 
+    (wasSuperlikedByOtherPlayerInMatchPhase ? <StarBorder color="warning" /> : null);
 
   if (!restaurant) {
     return <Card sx={{maxWidth: 345, margin: '20px auto'}}><CardContent><Typography>Error: Restaurant data missing.</Typography></CardContent></Card>;
@@ -107,17 +109,21 @@ function RestaurantCard({
         <CardMedia
           component="img"
           height="200"
-          image={restaurant.image_url || 'https://via.placeholder.com/300x200.png?text=No+Image'}
-          alt={restaurant.name}
+          image={restaurant?.image_url || 'https://via.placeholder.com/300x200.png?text=No+Image'}
+          alt={restaurant?.name || 'Restaurant'}
           sx={{ objectFit: 'cover' }}
+          onError={(e) => {
+            e.target.onerror = null;
+            e.target.src = 'https://via.placeholder.com/300x200.png?text=Image+Not+Available';
+          }}
         />
         <CardContent sx={{pb:0, backgroundColor: '#ffffff'}}>
           <Typography gutterBottom variant="h5" component="div" color="primary.dark" fontWeight="bold">
-            {restaurant.name}
+            {restaurant?.name}
           </Typography>
           <Typography variant="body2" color="text.primary" sx={{minHeight: '2.5em', mb: 0.5}}
           >
-            {restaurant.categories?.map(c => c.title).join(', ')}
+            {restaurant?.categories?.map(c => c.title).join(', ')}
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', my: 0.5 }}>
             <LocationOn fontSize="small" sx={{ mr: 0.5, color: 'primary.main' }} />

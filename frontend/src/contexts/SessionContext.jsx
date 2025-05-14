@@ -50,19 +50,38 @@ export function SessionProvider({ children }) {
       try {
         const message = JSON.parse(event.data);
         console.log('WS Message Received:', message);
+        
         if (message.type === 'state_update') {
-          setSessionState(message.data);
+          // Ensure we have valid session state before updating
+          if (message.data && typeof message.data === 'object') {
+            setSessionState(prevState => ({
+              ...prevState,
+              ...message.data,
+              // Preserve existing state if certain properties are missing in the update
+              players: message.data.players || prevState?.players || {},
+              matches: message.data.matches || prevState?.matches || {},
+              restaurants: message.data.restaurants || prevState?.restaurants || []
+            }));
+          } else {
+            console.warn('Received invalid state_update:', message.data);
+          }
           setError(null);
         } else if (message.type === 'error') {
-          setError(message.message || 'An error occurred in the session.');
-          // Potentially clear session if error is critical (e.g. session_not_found)
-          if (message.message.toLowerCase().includes('session not found') || message.message.toLowerCase().includes('player not found')) {
+          const errorMsg = message.message || 'An error occurred in the session.';
+          console.error('WebSocket error:', errorMsg);
+          setError(errorMsg);
+          
+          // Only clear session data for critical errors
+          if (errorMsg.toLowerCase().includes('session not found') || 
+              errorMsg.toLowerCase().includes('player not found') ||
+              errorMsg.toLowerCase().includes('invalid session')) {
+            console.warn('Clearing session data due to critical error');
             clearSessionData();
           }
         }
         // Handle other message types (player_joined, match_found, etc.)
       } catch (e) {
-        console.error('Error processing WebSocket message:', e);
+        console.error('Error processing WebSocket message:', e, 'Raw message:', event.data);
         setError('Received an invalid message from the server.');
       }
     };

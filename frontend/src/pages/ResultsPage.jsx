@@ -94,19 +94,25 @@ function ResultsPage() {
       </Paper>
 
       <Grid container spacing={3} sx={{ mt: 2 }}>
-        {finalMatches.map((restaurant) => (
-          <Grid item xs={12} sm={6} md={4} key={restaurant.id}>
-            <RestaurantCard 
-              restaurant={restaurant} 
-              isMatched={true} 
-              showMatchDetails={true}
-              allLikers={restaurant.allLikers}
-              likedByCurrentUser={restaurant.likedByCurrentUser}
-              superlikedByCurrentUser={restaurant.superlikedByCurrentUser}
-              viewingPlayerId={playerId} // Pass the viewing player's ID
-            />
-          </Grid>
-        ))}
+        {finalMatches.map((restaurant) => {
+          // Ensure all required props are properly defined
+          const safeProps = {
+            restaurant: restaurant || {},
+            isMatched: true,
+            showMatchDetails: true,
+            allLikers: Array.isArray(restaurant?.allLikers) ? restaurant.allLikers : [],
+            likedByCurrentUser: Boolean(restaurant?.likedByCurrentUser),
+            superlikedByCurrentUser: Boolean(restaurant?.superlikedByCurrentUser),
+            viewingPlayerId: playerId || null,
+            key: restaurant?.id || `restaurant-${Math.random().toString(36).substr(2, 9)}`
+          };
+          
+          return (
+            <Grid item xs={12} sm={6} md={4} key={safeProps.key}>
+              <RestaurantCard {...safeProps} />
+            </Grid>
+          );
+        })}
       </Grid>
 
       <Box sx={{ mt: 5, display: 'flex', justifyContent: 'center', gap: 2, flexWrap: 'wrap' }}>

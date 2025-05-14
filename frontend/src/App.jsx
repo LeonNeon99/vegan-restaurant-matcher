@@ -331,33 +331,44 @@ const OriginalSetupAndFlow = () => {
         return player2Superlikes.some(r => r.id === restaurantId);
     };
     const handleFinish = () => {
-        if (matchingPlayer === 1) {
-            // If it's player 1's turn, switch to player 2 (or back to player 1 in single-player)
-            const nextPlayer = player2 ? 2 : 1; // In single-player, we'll use the same player for both turns
-            setMatchingPlayer(nextPlayer);
-            setCurrentIdx(0);
-            
-            // If we're in single-player mode and this is the second pass, show results
-            if (!player2 && matchingPlayer === 1) {
-                // This is the second pass in single-player mode
+        if (!player2) {
+            // Single-player mode
+            if (matchingPlayer === 1) {
+                // First pass done, switch to second pass
+                setMatchingPlayer(1); // Keep as player 1 for display purposes
+                setCurrentIdx(0);
+                
+                // Copy player1's likes to player2's likes for the second pass
+                setPlayer2Likes([...player1Likes]);
+                setPlayer1Likes([]);
+            } else {
+                // Second pass done, show results
                 const ids1 = new Set(player1Likes.map(b => b.id));
                 const mutual = player2Likes.filter(b => ids1.has(b.id));
                 setMutualLikes(mutual);
                 setStage('results');
             }
         } else {
-            // For player 2 in two-player mode, show results
-            const ids1 = new Set(player1Likes.map(b => b.id));
-            const mutual = player2Likes.filter(b => ids1.has(b.id));
-            setMutualLikes(mutual);
-            setStage('results');
+            // Two-player mode
+            if (matchingPlayer === 1) {
+                // Switch to player 2
+                setMatchingPlayer(2);
+                setCurrentIdx(0);
+            } else {
+                // Player 2 is done, show results
+                const ids1 = new Set(player1Likes.map(b => b.id));
+                const mutual = player2Likes.filter(b => ids1.has(b.id));
+                setMutualLikes(mutual);
+                setStage('results');
+            }
         }
     };
     const nextRestaurant = () => {
         if (currentIdx < restaurants.length - 1) {
             setCurrentIdx(prev => prev + 1);
         } else {
-            handleFinish(); // Simplified: directly call handleFinish
+            // When reaching the end of the list, handle it the same as clicking Finish
+            handleFinish();
         }
     };
     const handleRestart = () => {
