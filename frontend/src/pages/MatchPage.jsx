@@ -165,7 +165,34 @@ export default function MatchPage() {
 
   // Add handleFinishEarly function
   const handleFinishEarly = () => {
-    finishEarly();
+    try {
+      if (finishEarly) {
+        finishEarly();
+      } else {
+        console.warn('finishEarly function is not available');
+        // If finishEarly is not available, try to proceed to results
+        if (sessionState?.status === 'completed') {
+          // Already completed, do nothing
+          return;
+        }
+        // Force update to show results if possible
+        const ids1 = new Set(player1Likes?.map(b => b.id) || []);
+        const mutual = player2Likes?.filter(b => ids1.has(b.id)) || [];
+        setMutualLikes(mutual);
+        setStage('results');
+      }
+    } catch (error) {
+      console.error('Error in handleFinishEarly:', error);
+      // Fallback to showing current matches if any
+      if (sessionState?.matches) {
+        const matches = Object.entries(sessionState.matches)
+          .filter(([_, votes]) => votes.likes?.length > 0 || votes.superlikes?.length > 0)
+          .map(([bizId]) => sessionState.restaurants?.find(r => r.id === bizId))
+          .filter(Boolean);
+        setMutualLikes(matches);
+        setStage('results');
+      }
+    }
   };
 
   return (
