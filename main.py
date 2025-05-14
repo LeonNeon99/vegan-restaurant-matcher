@@ -154,7 +154,6 @@ async def fetch_restaurants_for_session(session_id: str):
                 # Set player ready
                 for player_id in session["players"]:
                     session["players"][player_id]["ready"] = True
-                    session["players"][player_id]["current_index"] = 0  # Ensure it starts at 0
             
             print(f"Restaurants fetched for session {session_id}. Count: {len(fetched_restaurants)}")
             await broadcast_state_update(session_id) # Notify that restaurants are loaded
@@ -446,14 +445,11 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, player_id: s
     player_name = current_player_data.get("name", "Unknown")
     print(f"Player {player_id} ({player_name}) connected to session {session_id}")
     
-    # Auto-start for singleplayer mode only if this is a singleplayer session
-    player_count = len(session.get("players", {}))
-    if player_count == 1 and session.get("status") == "waiting_for_players" and len(session.get("restaurants", [])) > 0:
-        print(f"Auto-starting single player session {session_id} - player count: {player_count}")
+    # Auto-start sessions with only one player (singleplayer mode)
+    if len(session.get("players", {})) == 1 and session.get("status") == "waiting_for_players" and len(session.get("restaurants", [])) > 0:
         current_player_data["ready"] = True
         session["status"] = "active"
-        # Reset index to start at 0
-        current_player_data["current_index"] = 0
+        print(f"Auto-starting single player session {session_id}")
     
     await broadcast_state_update(session_id)
 
